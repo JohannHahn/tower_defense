@@ -4,9 +4,7 @@ CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
 CMakeScripts
-Testing
 CMakeFiles/
 *.cmake
-*.txt
 *Makefile*
 vs/

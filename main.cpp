@@ -25,10 +25,6 @@ void on_manual_resize(Context& ctx) {
     SetWindowSize(ctx.window.width, ctx.window.height);
 }
 
-void on_maximize(Context& ctx) {
-    
-}
-
 int main() {
     context.window.resizable = true; 
     InitWindow(context.window.width, context.window.height, context.window.title);
@@ -41,19 +37,13 @@ int main() {
 
     while (!WindowShouldClose()) {
 	BeginDrawing();
-	if (IsWindowResized()) {
+	if (IsWindowResized() || IsWindowMaximized()) {
 	    on_manual_resize(context);
-	}
-	if (IsWindowMaximized()) {
-	    on_manual_resize(context);
-	}
-	if (context.frame_counter % 10 == 0) {
-	    std::cout << "window size = " << context.window.width  << ", " << context.window.height << "\n";
-	    std::cout << "raylib window size = " << GetScreenWidth()  << ", " << GetScreenHeight() << "\n";
 	}
 	ClearBackground(RED);
 	EndDrawing();
 	context.frame_counter++;
     }
+    CloseWindow();
     return 0;
 }

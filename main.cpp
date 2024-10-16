@@ -20,7 +20,7 @@ struct Window {
 };
 
 enum Tile {
-    EMPTY, TILE_RED, TILE_BROWN, TILE_BLUE, TILE_GREEN, TILE_MAX
+    EMPTY, TILE_RED, TILE_BROWN, TILE_BLUE, TILE_GREEN, TILE_CUSTOM, TILE_MAX
 };
 
 Tile random_tile() {
@@ -64,7 +64,7 @@ struct Context {
     Rectangle game_boundary;
     Texture green_tex;
     Texture tile_textures[TILE_MAX];
-    Color colors[TILE_MAX] = {BLACK, RED, BROWN, GREEN, BLUE};
+    Color colors[TILE_MAX] = {BLACK, RED, BROWN, GREEN, BLUE, BLACK};
 
     void render_tiles() {
 	for(u64 y  = 0; y < tiles.num_rows; ++y) {
@@ -98,6 +98,13 @@ void on_manual_resize(Context& ctx) {
 
 void setup_textures(Context& ctx) {
     for (int i = 0; i < TILE_MAX; ++i) {
+	if (i == TILE_CUSTOM) {
+	    Image img = LoadImage("sprite.png");
+	    ImageResize(&img, ctx.tile_size, ctx.tile_size);
+	    ctx.tile_textures[i] = LoadTextureFromImage(img);
+	    UnloadImage(img);
+	    continue;
+	}
 	Image img = GenImageColor(ctx.tile_size, ctx.tile_size, ctx.colors[i]);
 	ctx.tile_textures[i] = LoadTextureFromImage(img);
 	UnloadImage(img);

@@ -20,7 +20,7 @@ struct Window {
 };
 
 enum Tile {
-    EMPTY, TILE_RED, TILE_BROWN, TILE_MAX
+    EMPTY, TILE_RED, TILE_BROWN, TILE_BLUE, TILE_GREEN, TILE_MAX
 };
 
 Tile random_tile() {
@@ -38,6 +38,14 @@ struct Tiles {
 	for(u64 i = 0; i < num_cols * num_rows; ++i) {
 	    tiles.push_back(random_tile());
 	}
+	cursor = 0;
+    }
+    void next_tile(u64 index) {
+	assert(index < tiles.size());
+	u64 current_tile = tiles[index];
+	current_tile++;
+	current_tile %= TILE_MAX;
+	tiles[index] = (Tile)current_tile;
     }
 };
 
@@ -54,30 +62,24 @@ struct Context {
     Color bg_col = GRAY;
     float tile_size = 100;
     Rectangle game_boundary;
-    Image game_image;
-    Texture game_texture;
-    Image tile_textures[TILE_MAX];
-    Color colors[TILE_MAX] = {BLACK, RED, BROWN};
-    u64 cursor = 0;
+    Texture green_tex;
+    Texture tile_textures[TILE_MAX];
+    Color colors[TILE_MAX] = {BLACK, RED, BROWN, GREEN, BLUE};
 
     void render_tiles() {
 	for(u64 y  = 0; y < tiles.num_rows; ++y) {
 	    for(u64 x = 0; x < tiles.num_cols; ++x) {
 		u64 idx = index(x, y, tiles.num_cols);
+		assert(idx < tiles.tiles.size());
 		Tile tile = tiles.tiles[idx];
 		assert(tile < TILE_MAX);
-		Color tile_col =  colors[tile];
-		ImageDrawRectangle(&game_image, x * tile_size, y * tile_size, tile_size, tile_size, tile_col);
+		DrawTextureV(tile_textures[tile], {x * tile_size, y * tile_size}, WHITE);
 	    }
 	}
 	// render selected tile
-	u64 x = cursor % tiles.num_cols;
-	u64 y = cursor / tiles.num_cols;
-	ImageDrawRectangleLines(&game_image, {x * tile_size, y * tile_size, tile_size, tile_size}, 3, WHITE);
-    }
-    void render_texture() {
-	UpdateTexture(game_texture, game_image.data);
-	DrawTexture(game_texture, 0, 0, WHITE);
+	u64 x = tiles.cursor % tiles.num_cols;
+	u64 y = tiles.cursor / tiles.num_cols;
+	DrawRectangleLinesEx({x * tile_size, y * tile_size, tile_size, tile_size}, 3, WHITE);
     }
 };
 
@@ -88,33 +90,54 @@ void init_window(Window& window) {
     }
     SetTargetFPS(60);
 }
+
 void on_manual_resize(Context& ctx) {
     ctx.window.width = GetScreenWidth();
     ctx.window.height = GetScreenHeight();
 }
 
 void setup_textures(Context& ctx) {
-    ctx.game_image = GenImageColor(ctx.game_boundary.width, ctx.game_boundary.height, ctx.bg_col);
-    ctx.game_texture = LoadTextureFromImage(ctx.game_image);
     for (int i = 0; i < TILE_MAX; ++i) {
-	ctx.tile_textures[i] = GenImageColor(ctx.tile_size, ctx.tile_size, ctx.colors[i]);
+	Image img = GenImageColor(ctx.tile_size, ctx.tile_size, ctx.colors[i]);
+	ctx.tile_textures[i] = LoadTextureFromImage(img);
+	UnloadImage(img);
     }
 }
 
 void controls(Context& ctx) {
-    if (IsKeyPressed(KEY_RIGHT)) ctx.cursor++;
-    else if (IsKeyPressed(KEY_LEFT)) ctx.cursor--;
-    else if (IsKeyPressed(KEY_DOWN)) ctx.cursor += ctx.tiles.num_cols;
-    else if (IsKeyPressed(KEY_UP)) ctx.cursor -= ctx.tiles.num_cols;
-    ctx.cursor %= ctx.tiles.tiles.size();
+    if (IsKeyPressed(KEY_RIGHT)) {
+	if (ctx.tiles.cursor % ctx.tiles.num_cols == ctx.tiles.num_cols - 1) {
+	    ctx.tiles.cursor -= ctx.tiles.num_cols - 1;
+	}
+	else ctx.tiles.cursor++;
+    }
+    else if (IsKeyPressed(KEY_LEFT)) {
+	if (ctx.tiles.cursor % ctx.tiles.num_cols == 0) ctx.tiles.cursor += ctx.tiles.num_cols - 1;
+	else ctx.tiles.cursor--;
+    }
+    else if (IsKeyPressed(KEY_DOWN)) {
+	ctx.tiles.cursor += ctx.tiles.num_cols;
+	ctx.tiles.cursor %= ctx.tiles.tiles.size();
+    }
+    else if (IsKeyPressed(KEY_UP)) {
+	if (ctx.tiles.cursor < ctx.tiles.num_cols) ctx.tiles.cursor += ctx.tiles.num_cols * (ctx.tiles.num_rows - 1);
+	else ctx.tiles.cursor -= ctx.tiles.num_cols;
+    }
+    if (IsKeyPressed(KEY_D)) {
+	ctx.tiles.next_tile(ctx.tiles.cursor);
+    }
 }
+
 
 int main() {
     Window window = Window(1300, 900, "Tower Defense", true);
-    Context ctx = Context(window, 0, Tiles(10,20));
+    Context ctx = Context(window, 0, Tiles(5,5));
     // calls InitWindow from raylib
     init_window(window);
     setup_textures(ctx);
+    Image green_img = GenImageColor(ctx.tile_size, ctx.tile_size, GREEN);
+    Texture green_tex = LoadTextureFromImage(green_img);
+    ctx.green_tex = green_tex;
     while (!WindowShouldClose()) {
 	controls(ctx);
 	BeginDrawing();
@@ -123,7 +146,6 @@ int main() {
 	}
 	ClearBackground(RED);
 	ctx.render_tiles();
-	ctx.render_texture();
 	EndDrawing();
 	ctx.frame_counter++;
     }

@@ -1,0 +1,10 @@
+*.exe
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+CMakeFiles/
+*.cmake
+*Makefile*
+vs/
+img/

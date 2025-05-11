@@ -4,7 +4,9 @@ CMakeCache.txt
 CMakeFiles
 CMakeScripts
 CMakeFiles/
+.cache/
 *.cmake
+*.json
 *Makefile*
 vs/
 img/

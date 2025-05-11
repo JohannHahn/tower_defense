@@ -1,6 +1,6 @@
 #include <iostream>
+#include "raylib.h"
 
 int main() {
-    std::cout << "hey\n";
     return 0;
 }

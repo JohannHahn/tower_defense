@@ -15,8 +15,8 @@ enum Log_Level {
     NO_LOG, DEBUG
 };
 Log_Level global_log_lvl = DEBUG;
-constexpr u64 initial_width = 900;
-constexpr u64 initial_height = 600;
+constexpr const u64 initial_width = 900;
+constexpr const u64 initial_height = 600;
 
 template <class T>
 void log_var(T var, const char* name = nullptr, Log_Level log_lvl = DEBUG) {
@@ -31,16 +31,28 @@ void log_var(T var, const char* name = nullptr, Log_Level log_lvl = DEBUG) {
 }
 
 struct Window {
-    int width = initial_width;
-    int height = initial_height;
+    u64 width = initial_width;
+    u64 height = initial_height;
+    u64 fps = 60;
     const char* title = "Tower Defense";
 
-    void init() {
+    void open() {
         InitWindow(width, height, title);
     }
 
     void close() {
         CloseWindow();
+    }
+
+    void resize_if_needed() {
+        if (!IsWindowResized()) return;
+        this->width = GetScreenWidth();
+        this->height = GetScreenHeight();
+    }
+
+    void set_fps(u64 fps) {
+        this->fps = fps;
+        SetTargetFPS(fps);
     }
 };
 
@@ -70,6 +82,11 @@ struct Map {
         for (const Vector2& wp : waypoints) {
             DrawCircleV(wp, 10, RED);
         }
+    }
+
+    void ground_tex_from_image(const Image& img) {
+        UnloadTexture(ground_tex);
+        ground_tex = LoadTextureFromImage(img);
     }
 };
 
@@ -129,12 +146,13 @@ struct Level {
     }
 };
 
-Level make_test_level(const Window& window) {
+Level make_test_level(const Window& window, Image img) {
     Level level = Level("test");
     int point_count = 50;
     for (int i = 0; i < point_count; ++i) {
         level.map.waypoints.push_back({(float)i * window.width / (float)point_count, (float)i * window.height / (float)point_count});
     }
+    level.map.ground_tex_from_image(img);
     return level;
 }
 
@@ -195,19 +213,26 @@ struct Game {
 
 
 int main() {
+    const char* img_path = "perlin_noise.bmp";
+    Image img = LoadImage(img_path);
+    // Raylib window
     Window window;
-
-    window.init();
+    window.set_fps(100);
+    window.open();
 
     Game game;
-    game.levels.push_back(make_test_level(window));
+    game.levels.push_back(make_test_level(window, img));
     game.start();
 
     while (!WindowShouldClose()) {
+        window.resize_if_needed();
+
         BeginDrawing();
         ClearBackground(BLACK);
-        
+         
         game.draw(window);
+
+        DrawFPS(0, 0);
 
         EndDrawing();
     }

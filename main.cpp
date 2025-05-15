@@ -17,6 +17,9 @@ enum Log_Level {
     NO_LOG, LOW, FULL, 
 };
 Log_Level global_log_lvl = FULL;
+
+bool global_draw_debug = true;
+
 constexpr const u64 initial_width = 900;
 constexpr const u64 initial_height = 600;
 
@@ -116,13 +119,74 @@ enum Enemy_Type {
     CHICKEN,
 };
 
+
 struct Enemy {
-    float hp;
-    float speed;
-    float damage;
-    float max_speed;
-    Enemy_Type type;
+    float hp = 100.f;
+    float speed = 100.f;
+    float max_speed = 100.f;
+    float damage = 1.f;
+    Enemy_Type type = CHICKEN;
+    Rectangle boundary = {0.f, 0.f, 10.f, 10.f};
+    Vector2 direction = {1.f, 0.f};
+    u64 next_waypoint = 0;
+    bool active = true;
+
+    void set_position(Vector2 pos) {
+        boundary.x = pos.x;
+        boundary.y = pos.y;
+    }
+
+    Vector2 get_position() const {
+        return {boundary.x, boundary.y};
+    }
+
+    void goto_waypoint(const std::vector<Vector2>& waypoints) {
+        if (active == false) return;
+
+        Vector2 wp = waypoints[next_waypoint]; 
+        Vector2 pos = get_position();
+        float distance = Vector2Length(Vector2Subtract(wp, pos));
+
+        if (distance > 100.f) {
+            find_nearest_waypoint(waypoints);
+        }
+
+        direction = Vector2Scale(Vector2Normalize(Vector2Subtract(wp, pos)), speed * GetFrameTime());
+        pos = Vector2Add(pos, direction);
+        boundary.x = pos.x;
+        boundary.y = pos.y;
+
+        check_waypoint(wp, waypoints.size());
+    }
+
+    void check_waypoint(const Vector2 wp, u64 waypoints_size) {
+        Vector2 pos = {boundary.x, boundary.y};
+        if (Vector2Length(Vector2Subtract(pos, wp)) < 1.f) {
+            next_waypoint++;
+        }
+        if (next_waypoint >= waypoints_size) {
+            active = false;
+            return;
+        }
+    }
+
+    void find_nearest_waypoint(const std::vector<Vector2>& waypoints) {
+        float min_distance = 99999999.f; 
+        u64 nearest = 0;
+        int i = 0;
+        for (const Vector2& wp : waypoints) {
+            float wp_dist = Vector2Distance(get_position(), wp);
+            if (wp_dist < min_distance) {
+                nearest = i;
+                min_distance = wp_dist;
+            }
+            i++;
+        }
+        next_waypoint = nearest;
+    }
 };
+
+
 
 enum Building_Type {
     HOLE,
@@ -135,10 +199,18 @@ struct Building {
     Building_Type type;
 };
 
+struct EnemySpawner {
+    Enemy_Type type = CHICKEN;
+    Vector2 position = {0.f, 0.f};
+    float delay = 1.f;
+    float time_since_spawn = delay;
+};
+
 struct Level {
     Map map;
     std::vector<Enemy> enemies;
     std::vector<Building> buildings;
+    std::vector<EnemySpawner> spawners;
     const char* name; 
     float time = 0.f;
 
@@ -151,11 +223,69 @@ struct Level {
         time = 0.f;
     }
 
+    void update() {
+        update_spawners();
+
+        for (Enemy& enemy : enemies) {
+            enemy.goto_waypoint(map.waypoints);
+        }
+        remove_inactive_enemies();
+    }
+
+    void update_spawners() {
+        for (EnemySpawner& spawner: spawners) {
+            spawner.time_since_spawn += GetFrameTime();
+            if (spawner.time_since_spawn < spawner.delay) return;
+            
+            Enemy enemy;
+            enemy.type = spawner.type;
+            enemy.set_position(spawner.position);
+            spawn_enemy(enemy);
+            spawner.time_since_spawn = 0.f;
+        }
+    }
+
+    void remove_inactive_enemies() {
+        for (int i = 0; i < enemies.size(); ++i) {
+            if (enemies[i].active == false) {
+                enemies[i] = enemies[enemies.size() - 1]; 
+                enemies.pop_back();
+                i--;
+            }
+        }
+    }
+
+    void spawn_enemy(const Enemy& enemy) {
+        enemies.push_back(enemy);
+    }
+
     void draw(const Window& window) {
         // draw map
         map.draw(window);
         // draw enemies
+        for (const Enemy& enemy : enemies) {
+            draw_enemy(enemy);
+        }
         // draw buildings
+
+        DrawText(TextFormat("enemies.size = %d", enemies.size()), window.width / 2.f, 0, 20, WHITE);
+    }
+
+    void draw_enemy(const Enemy& enemy, bool draw_debug = false) {
+        if (enemy.active == false) return;
+        // draw boundary
+        if (draw_debug || global_draw_debug) {
+            DrawRectangleRec(enemy.boundary, RED);
+
+            assert(enemy.next_waypoint < map.waypoints.size());
+            Vector2 pos = enemy.get_position();
+            pos.x += enemy.boundary.width / 2.f;
+            pos.y += enemy.boundary.height / 2.f;
+            Vector2 direction = enemy.direction;
+            direction = Vector2Scale(direction, 1.f / GetFrameTime());
+            DrawLineV(pos, Vector2Add(pos, direction), GREEN);
+        }
+        // draw "model"
     }
 
     std::string to_string(const char* prefix = "") {
@@ -168,6 +298,7 @@ struct Level {
     }
 };
 
+
 Level make_test_level(const Window& window, Image img) {
     Level level = Level("test");
     int point_count = 50;
@@ -175,12 +306,16 @@ Level make_test_level(const Window& window, Image img) {
         level.map.waypoints.push_back({(float)i * window.width / (float)point_count, (float)i * window.height / (float)point_count});
         if (GetRandomValue(0, 2) == 0) {
             if (GetRandomValue(0, 1) == 1)
-                level.map.waypoints[i].x += GetRandomValue(1, 10);
+                level.map.waypoints[i].x += GetRandomValue(1, 20);
             else if (GetRandomValue(0, 1) == 1)
-                level.map.waypoints[i].y += GetRandomValue(1, 10);
+                level.map.waypoints[i].y += GetRandomValue(1, 20);
         }
     }
     level.map.ground_tex_from_image(img);
+
+    EnemySpawner sp;
+    sp.position = {window.width / 2.f, 0};
+    level.spawners.push_back(sp);
     return level;
 }
 
@@ -214,6 +349,11 @@ struct Game {
     void select_level(u64 index) {
         assert(index < levels.size());
         active_level = index;
+    }
+
+    void update() {
+        assert(active_level < levels.size());
+        levels[active_level].update();
     }
 
     void draw(const Window& window) {
@@ -255,6 +395,7 @@ int main() {
 
     while (!WindowShouldClose()) {
         window.resize_if_needed();
+        game.update();
 
         BeginDrawing();
         ClearBackground(BLACK);

@@ -1,10 +1,12 @@
 #include <iostream>
 //#include "raylib/raylib/include/raylib.h"
 #include "raylib.h"
+#include "raymath.h"
 #include <cassert>
 #include <vector>
 #include <string>
 #include <cstring>
+#include <time.h>
 #include <inttypes.h>
 
 typedef uint64_t u64;
@@ -12,14 +14,14 @@ typedef uint32_t u32;
 
 // tools
 enum Log_Level {
-    NO_LOG, DEBUG
+    NO_LOG, LOW, FULL, 
 };
-Log_Level global_log_lvl = DEBUG;
+Log_Level global_log_lvl = FULL;
 constexpr const u64 initial_width = 900;
 constexpr const u64 initial_height = 600;
 
 template <class T>
-void log_var(T var, const char* name = nullptr, Log_Level log_lvl = DEBUG) {
+void log_var(T var, const char* name = nullptr, Log_Level log_lvl = FULL) {
     if (global_log_lvl == NO_LOG) return;
     if (log_lvl < global_log_lvl) return;
 
@@ -33,7 +35,7 @@ void log_var(T var, const char* name = nullptr, Log_Level log_lvl = DEBUG) {
 struct Window {
     u64 width = initial_width;
     u64 height = initial_height;
-    u64 fps = 60;
+    u64 fps = 0;
     const char* title = "Tower Defense";
 
     void open() {
@@ -51,6 +53,7 @@ struct Window {
     }
 
     void set_fps(u64 fps) {
+        if (fps == 0) return;
         this->fps = fps;
         SetTargetFPS(fps);
     }
@@ -60,12 +63,12 @@ struct Map {
     Texture ground_tex;
     u64 width = initial_width;
     u64 height = initial_height;
+    float road_width = 10.f;
     std::vector<Vector2> waypoints;
 
     Map() {
         //Image img = GenImageChecked(width, height, width / 10, height / 10, BLACK, WHITE);
-        Image img = GenImagePerlinNoise(width, height, 0, 0, 1.f);
-        ImageColorTint(&img, BROWN);
+        Image img = GenImageColor(width, height, BROWN);
         ground_tex = LoadTextureFromImage(img);
         UnloadImage(img);
 
@@ -79,8 +82,27 @@ struct Map {
         DrawTexturePro(ground_tex, source, dest, {0.f, 0.f}, 0.f, WHITE);
 
         // draw waypoints
-        for (const Vector2& wp : waypoints) {
-            DrawCircleV(wp, 10, RED);
+        for (int i = 0; i < waypoints.size(); ++i) {
+            Vector2 current = waypoints[i]; 
+            DrawCircleV(current, 1, RED);
+            if (i == waypoints.size() - 1) continue;
+
+            Vector2 next = waypoints[i + 1]; 
+            //DrawLineV(current, next, BLUE);
+
+            Vector2 dir = Vector2Subtract(next, current);
+            Vector2 dir_90 = {dir.y, -dir.x};
+            dir_90 = Vector2Normalize(dir_90);
+            dir_90 = Vector2Scale(dir_90, road_width);
+            Vector2 road_current = Vector2Add(current, dir_90); 
+            Vector2 road_next = Vector2Add(next, dir_90); 
+
+            // draw road segment on one side
+            DrawLineV(road_current, road_next, GREEN);
+            // the other side
+            road_current = Vector2Add(current, Vector2Scale(dir_90, -1.f)); 
+            road_next = Vector2Add(next, Vector2Scale(dir_90, -1.f)); 
+            DrawLineV(road_current, road_next, GREEN);
         }
     }
 
@@ -151,6 +173,12 @@ Level make_test_level(const Window& window, Image img) {
     int point_count = 50;
     for (int i = 0; i < point_count; ++i) {
         level.map.waypoints.push_back({(float)i * window.width / (float)point_count, (float)i * window.height / (float)point_count});
+        if (GetRandomValue(0, 2) == 0) {
+            if (GetRandomValue(0, 1) == 1)
+                level.map.waypoints[i].x += GetRandomValue(1, 10);
+            else if (GetRandomValue(0, 1) == 1)
+                level.map.waypoints[i].y += GetRandomValue(1, 10);
+        }
     }
     level.map.ground_tex_from_image(img);
     return level;
@@ -219,6 +247,7 @@ int main() {
     Window window;
     window.set_fps(100);
     window.open();
+    SetRandomSeed(time(NULL));
 
     Game game;
     game.levels.push_back(make_test_level(window, img));

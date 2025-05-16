@@ -56,7 +56,7 @@ struct Window {
     }
 
     void set_fps(u64 fps) {
-        if (fps == 0) return;
+        //if (fps == 0) return;
         this->fps = fps;
         SetTargetFPS(fps);
     }
@@ -187,16 +187,59 @@ struct Enemy {
 };
 
 
-
-enum Building_Type {
-    HOLE,
+struct Projectile {
+    float speed = 500.f; 
+    Vector2 position;
+    Vector2 target;
+    bool active = true;
 };
 
-struct Building {
-    float hp;
-    float damage;
-    float range;
-    Building_Type type;
+enum Tower_Type {
+    BASIC,
+};
+
+struct Tower {
+    float hp = 100.f;
+    float damage = 10.f;
+    float range = 100.f;
+    float reload_time = 5.f;
+    float proj_speed = 5.f; 
+    float time_since_shot = reload_time;
+    std::vector<Projectile> active_bullets;
+    Tower_Type type = BASIC;
+
+    Vector2 position = {0.f, 0.f};
+    Vector2 size = {10.f, 10.f};
+    Vector2 target;
+    bool target_lock = false;
+
+    void shoot() {
+        if (target_lock == false) return;
+        Projectile bullet;
+        bullet.position = position;
+        bullet.target = target;
+        active_bullets.push_back(bullet);
+    }
+
+    void update(const std::vector<Enemy> enemies) {
+        // find target
+        bool targeted = false;
+        for (const Enemy& enemy : enemies) {
+            if (Vector2Length(Vector2Subtract(position, enemy.get_position())) <= range) {
+                target = enemy.get_position();
+                targeted = true;
+            }
+        }
+        target_lock = targeted;
+
+        // update bullets
+        for (Projectile& bullet : active_bullets) {
+            Vector2 dir = Vector2Scale(Vector2Normalize(Vector2Subtract(bullet.target, bullet.position)), bullet.speed * GetFrameTime());
+            bullet.position = Vector2Add(bullet.position, dir);
+        } 
+
+        DrawText(TextFormat("active bullets: %d", active_bullets.size()), 0, initial_height / 2, 20, WHITE);
+    }
 };
 
 struct EnemySpawner {
@@ -209,14 +252,14 @@ struct EnemySpawner {
 struct Level {
     Map map;
     std::vector<Enemy> enemies;
-    std::vector<Building> buildings;
+    std::vector<Tower> towers;
     std::vector<EnemySpawner> spawners;
     const char* name; 
     float time = 0.f;
 
     Level(const char* name):name(name) {
         enemies.reserve(100); 
-        buildings.reserve(100); 
+        towers.reserve(100); 
     }
 
     void start() {
@@ -225,6 +268,7 @@ struct Level {
 
     void update() {
         update_spawners();
+        update_towers();
 
         for (Enemy& enemy : enemies) {
             enemy.goto_waypoint(map.waypoints);
@@ -243,6 +287,18 @@ struct Level {
             spawn_enemy(enemy);
             spawner.time_since_spawn = 0.f;
         }
+    }
+
+    void update_towers() {
+        for (Tower& tower : towers) {
+            tower.update(enemies);
+
+            tower.time_since_shot += GetFrameTime();
+            if (tower.time_since_shot < tower.reload_time) return;
+            
+            tower.shoot();
+
+        }     
     }
 
     void remove_inactive_enemies() {
@@ -267,6 +323,9 @@ struct Level {
             draw_enemy(enemy);
         }
         // draw buildings
+        for (const Tower& tower: towers) {
+            draw_tower(tower);
+        }
 
         DrawText(TextFormat("enemies.size = %d", enemies.size()), window.width / 2.f, 0, 20, WHITE);
     }
@@ -288,12 +347,25 @@ struct Level {
         // draw "model"
     }
 
+    void draw_tower(const Tower& tower) {
+        Rectangle tower_rec = {tower.position.x, tower.position.y, tower.size.x, tower.size.y};
+        DrawRectangleRec(tower_rec, GREEN);
+        draw_bullets(tower);
+    }
+
+    void draw_bullets(const Tower& tower) {
+        for (const Projectile& bullet: tower.active_bullets) {
+            if (bullet.active == false) continue;
+            DrawCircleV(bullet.position, 10.f, YELLOW);
+        }
+    }
+
     std::string to_string(const char* prefix = "") {
         if (prefix == nullptr) prefix = "";
         std::string out;
         out += prefix; out += "Level "; out += name; out += "\n";
         out += prefix; out += "active enemies: "; out += std::to_string(enemies.size()); out += "\n";  
-        out += prefix; out += "active buildings: "; out += std::to_string(buildings.size()); out += "\n";  
+        out += prefix; out += "active buildings: "; out += std::to_string(towers.size()); out += "\n";  
         return out;
     }
 };
@@ -316,13 +388,16 @@ Level make_test_level(const Window& window, Image img) {
     EnemySpawner sp;
     sp.position = {window.width / 2.f, 0};
     level.spawners.push_back(sp);
+
+    Tower tower; tower.position = {window.width / 2.f, window.height / 1.5f};
+    level.towers.push_back(tower);
     return level;
 }
 
 struct Game {
     std::vector<Level> levels;
     int active_level = -1;
-    Building* selected_building = nullptr;
+    Tower* selected_building = nullptr;
 
     Game() {
         levels.reserve(10);

@@ -12,6 +12,25 @@
 typedef uint64_t u64;
 typedef uint32_t u32;
 
+template <class T>
+void remove_inactive_elements(std::vector<T>& array) {
+    for (int i = 0; i < array.size(); ++i) {
+        if (array.at(i).active == false) {
+            array.at(i) = array.at(array.size() - 1); 
+            array.pop_back();
+            i--;
+        }
+    }
+}
+
+Vector2 get_rec_center(Rectangle rec) {
+    return {rec.x + rec.width / 2.f, rec.y + rec.height / 2.f};
+}
+
+Rectangle to_rec(const Vector2& v1, const Vector2& v2) {
+    return {v1.x, v1.y, v2.x, v2.y};
+}
+
 // tools
 enum Log_Level {
     NO_LOG, LOW, FULL, 
@@ -60,6 +79,11 @@ struct Window {
         this->fps = fps;
         SetTargetFPS(fps);
     }
+
+    Rectangle get_game_boundary() const {
+        return {0.f, 0.f, (float)width, (float)height};
+    }
+
 };
 
 struct Map {
@@ -119,8 +143,13 @@ enum Enemy_Type {
     CHICKEN,
 };
 
+struct Toggleable {
+    bool active;
+};
+
 
 struct Enemy {
+    bool active = true;
     float hp = 100.f;
     float speed = 100.f;
     float max_speed = 100.f;
@@ -129,7 +158,6 @@ struct Enemy {
     Rectangle boundary = {0.f, 0.f, 10.f, 10.f};
     Vector2 direction = {1.f, 0.f};
     u64 next_waypoint = 0;
-    bool active = true;
 
     void set_position(Vector2 pos) {
         boundary.x = pos.x;
@@ -140,7 +168,11 @@ struct Enemy {
         return {boundary.x, boundary.y};
     }
 
-    void goto_waypoint(const std::vector<Vector2>& waypoints) {
+    Vector2 get_center() const {
+        return {boundary.x + boundary.width / 2.f, boundary.y + boundary.height / 2.f};
+    }
+
+    void update(const std::vector<Vector2>& waypoints) {
         if (active == false) return;
 
         Vector2 wp = waypoints[next_waypoint]; 
@@ -175,7 +207,7 @@ struct Enemy {
         u64 nearest = 0;
         int i = 0;
         for (const Vector2& wp : waypoints) {
-            float wp_dist = Vector2Distance(get_position(), wp);
+            float wp_dist = Vector2Distance(get_center(), wp);
             if (wp_dist < min_distance) {
                 nearest = i;
                 min_distance = wp_dist;
@@ -188,10 +220,30 @@ struct Enemy {
 
 
 struct Projectile {
-    float speed = 500.f; 
-    Vector2 position;
-    Vector2 target;
     bool active = true;
+    float speed = 70.f; 
+    float radius = 1.f;
+    Vector2 position;
+    // TODO seeking
+    //Vector2 target;
+    Vector2 direction;
+
+    void update(const std::vector<Enemy>& enemies, Rectangle game_boundary) {
+        if (active == false) return;
+        Vector2 dir = Vector2Scale(direction, speed / GetFrameTime());
+        position = Vector2Add(position, dir);
+        for (const Enemy& enemy : enemies) {
+            if (CheckCollisionCircleRec(position, radius, enemy.boundary)) {
+                active = false;
+                // TODO:: enemy.hit();
+                return;
+            }
+            else if (!CheckCollisionCircleRec(position, radius, game_boundary)) {
+                active = false;
+                return;
+            }
+        }
+    }
 };
 
 enum Tower_Type {
@@ -202,51 +254,66 @@ struct Tower {
     float hp = 100.f;
     float damage = 10.f;
     float range = 100.f;
-    float reload_time = 5.f;
-    float proj_speed = 5.f; 
+    float reload_time = 50.f;
     float time_since_shot = reload_time;
     std::vector<Projectile> active_bullets;
     Tower_Type type = BASIC;
 
     Vector2 position = {0.f, 0.f};
     Vector2 size = {10.f, 10.f};
-    Vector2 target;
+    Vector2 direction = {10.f, 10.f};
+    u64 target_index;
     bool target_lock = false;
-
-    void shoot() {
-        if (target_lock == false) return;
-        Projectile bullet;
-        bullet.position = position;
-        bullet.target = target;
-        active_bullets.push_back(bullet);
-    }
 
     void update(const std::vector<Enemy> enemies) {
         // find target
-        bool targeted = false;
-        for (const Enemy& enemy : enemies) {
-            if (Vector2Length(Vector2Subtract(position, enemy.get_position())) <= range) {
-                target = enemy.get_position();
-                targeted = true;
+        if (target_lock == false) {
+            u64 i = 0;
+            for (const Enemy& enemy : enemies) {
+                if (enemy.active == false) continue;
+                Vector2 line_to_target = Vector2Subtract(enemy.get_center(), position);
+                if (Vector2Length(line_to_target) <= range) {
+                    target_index = i;
+                    target_lock = true;
+                    break;
+                }
+                i++;
             }
         }
-        target_lock = targeted;
 
-        // update bullets
-        for (Projectile& bullet : active_bullets) {
-            Vector2 dir = Vector2Scale(Vector2Normalize(Vector2Subtract(bullet.target, bullet.position)), bullet.speed * GetFrameTime());
-            bullet.position = Vector2Add(bullet.position, dir);
-        } 
+        if (target_lock) {
+            if (target_index >= enemies.size() ) {
+                target_lock = false;
 
-        DrawText(TextFormat("active bullets: %d", active_bullets.size()), 0, initial_height / 2, 20, WHITE);
+                return;
+            }
+            Vector2 line_to_target = Vector2Subtract(enemies[target_index].get_center(), get_center());
+            direction = Vector2Normalize(line_to_target);
+            if (Vector2Length(line_to_target) > range) target_lock = false;
+        }
+    }
+
+    Vector2 get_center() const {
+        return {position.x + size.x / 2.f, position.y + size.y / 2.f};
     }
 };
 
 struct EnemySpawner {
+    bool active = true;
     Enemy_Type type = CHICKEN;
     Vector2 position = {0.f, 0.f};
     float delay = 1.f;
     float time_since_spawn = delay;
+    u64 max = 0;
+    u64 spawned = 0;
+
+    void spawn() {
+        if (active == false) return;
+        spawned++;
+        if (max > 0 && spawned >= max) {
+            active = false;
+        }
+    }
 };
 
 struct Level {
@@ -254,6 +321,7 @@ struct Level {
     std::vector<Enemy> enemies;
     std::vector<Tower> towers;
     std::vector<EnemySpawner> spawners;
+    std::vector<Projectile> bullets;
     const char* name; 
     float time = 0.f;
 
@@ -266,25 +334,36 @@ struct Level {
         time = 0.f;
     }
 
-    void update() {
+    void update(Rectangle game_boundary) {
         update_spawners();
         update_towers();
+        update_bullets(game_boundary);
+        update_enemies();
+    }
 
+    void update_enemies() {
         for (Enemy& enemy : enemies) {
-            enemy.goto_waypoint(map.waypoints);
+            enemy.update(map.waypoints);
         }
-        remove_inactive_enemies();
+        remove_inactive_elements(enemies);
+    }
+
+    void update_bullets(Rectangle game_boundary) {
+        for (Projectile& bullet : bullets) {
+            bullet.update(enemies, game_boundary);
+        } 
     }
 
     void update_spawners() {
         for (EnemySpawner& spawner: spawners) {
             spawner.time_since_spawn += GetFrameTime();
-            if (spawner.time_since_spawn < spawner.delay) return;
+            if (!spawner.active || spawner.time_since_spawn < spawner.delay) return;
             
             Enemy enemy;
             enemy.type = spawner.type;
             enemy.set_position(spawner.position);
-            spawn_enemy(enemy);
+            spawner.spawn();
+            enemies.push_back(enemy);
             spawner.time_since_spawn = 0.f;
         }
     }
@@ -295,24 +374,19 @@ struct Level {
 
             tower.time_since_shot += GetFrameTime();
             if (tower.time_since_shot < tower.reload_time) return;
-            
-            tower.shoot();
-
+            spawn_bullet(tower);
         }     
-    }
-
-    void remove_inactive_enemies() {
-        for (int i = 0; i < enemies.size(); ++i) {
-            if (enemies[i].active == false) {
-                enemies[i] = enemies[enemies.size() - 1]; 
-                enemies.pop_back();
-                i--;
-            }
+        for (Tower& tower: towers) {
+            remove_inactive_elements(tower.active_bullets);
         }
     }
 
-    void spawn_enemy(const Enemy& enemy) {
-        enemies.push_back(enemy);
+    void spawn_bullet(const Tower& tower) {
+        if (tower.target_lock == false) return;
+        Projectile bullet;
+        bullet.position = tower.get_center();
+        bullet.direction = tower.direction;
+        bullets.push_back(bullet);
     }
 
     void draw(const Window& window) {
@@ -326,8 +400,13 @@ struct Level {
         for (const Tower& tower: towers) {
             draw_tower(tower);
         }
-
+        
+        for (const Projectile& bullet: bullets) {
+            if (bullet.active == false) continue;
+            DrawCircleV(bullet.position, 1.f, YELLOW);
+        }
         DrawText(TextFormat("enemies.size = %d", enemies.size()), window.width / 2.f, 0, 20, WHITE);
+        DrawText(TextFormat("bullets.size = %d", bullets.size()), window.width / 1.3f, 0, 20, WHITE);
     }
 
     void draw_enemy(const Enemy& enemy, bool draw_debug = false) {
@@ -336,10 +415,11 @@ struct Level {
         if (draw_debug || global_draw_debug) {
             DrawRectangleRec(enemy.boundary, RED);
 
+            if (enemy.next_waypoint >= map.waypoints.size()) {
+            }
+                
             assert(enemy.next_waypoint < map.waypoints.size());
-            Vector2 pos = enemy.get_position();
-            pos.x += enemy.boundary.width / 2.f;
-            pos.y += enemy.boundary.height / 2.f;
+            Vector2 pos = enemy.get_center();
             Vector2 direction = enemy.direction;
             direction = Vector2Scale(direction, 1.f / GetFrameTime());
             DrawLineV(pos, Vector2Add(pos, direction), GREEN);
@@ -347,16 +427,18 @@ struct Level {
         // draw "model"
     }
 
-    void draw_tower(const Tower& tower) {
-        Rectangle tower_rec = {tower.position.x, tower.position.y, tower.size.x, tower.size.y};
-        DrawRectangleRec(tower_rec, GREEN);
-        draw_bullets(tower);
-    }
-
-    void draw_bullets(const Tower& tower) {
-        for (const Projectile& bullet: tower.active_bullets) {
-            if (bullet.active == false) continue;
-            DrawCircleV(bullet.position, 10.f, YELLOW);
+    void draw_tower(const Tower& tower, bool draw_debug = false) {
+        if (draw_debug || global_draw_debug) {
+            Color color = tower.target_lock ? GREEN : GRAY;
+            Rectangle tower_rec = {tower.position.x, tower.position.y, tower.size.x, tower.size.y};
+            DrawRectangleRec(tower_rec, color);
+            DrawLineV(tower.get_center(), Vector2Add(tower.get_center(), Vector2Scale(tower.direction, 40.f)), GREEN);
+            DrawCircleLinesV(tower.get_center(), tower.range, RED);
+            if (tower.target_lock) {
+                DrawLineV(tower.get_center(), enemies[tower.target_index].get_center(), GRAY);
+                // draw_target
+                DrawRectangleRec(enemies[tower.target_index].boundary, GREEN);
+            }
         }
     }
 
@@ -387,6 +469,7 @@ Level make_test_level(const Window& window, Image img) {
 
     EnemySpawner sp;
     sp.position = {window.width / 2.f, 0};
+    sp.max = 20;
     level.spawners.push_back(sp);
 
     Tower tower; tower.position = {window.width / 2.f, window.height / 1.5f};
@@ -426,9 +509,9 @@ struct Game {
         active_level = index;
     }
 
-    void update() {
+    void update(Rectangle game_boundary) {
         assert(active_level < levels.size());
-        levels[active_level].update();
+        levels[active_level].update(game_boundary);
     }
 
     void draw(const Window& window) {
@@ -470,7 +553,7 @@ int main() {
 
     while (!WindowShouldClose()) {
         window.resize_if_needed();
-        game.update();
+        game.update(window.get_game_boundary());
 
         BeginDrawing();
         ClearBackground(BLACK);

@@ -108,7 +108,7 @@ struct EnemySpawner {
     Enemy_Type type = CHICKEN;
     Vector2 position = {0.f, 0.f};
     float delay = 1.f;
-    float time_since_spawn = delay;
+    float time_since_spawn = 0.f;
     u64 max = 0;
     u64 spawned = 0;
 
@@ -260,9 +260,11 @@ void Level::update_bullets(Rectangle game_boundary) {
 }
 
 void Level::update_spawners() {
+    int i = 0;
     for (EnemySpawner& spawner: spawners) {
+        if (spawner.active == false) continue;
         spawner.time_since_spawn += GetFrameTime();
-        if (!spawner.active || spawner.time_since_spawn < spawner.delay) return;
+        if (spawner.time_since_spawn < spawner.delay) continue;
         
         Enemy enemy;
         enemy.type = spawner.type;
@@ -270,6 +272,7 @@ void Level::update_spawners() {
         spawner.spawn();
         enemies.push_back(enemy);
         spawner.time_since_spawn = 0.f;
+        i++;
     }
 }
 
@@ -306,7 +309,8 @@ std::string Level::to_string(const char* prefix) {
 void EnemySpawner::spawn() {
     if (active == false) return;
     spawned++;
-    if (max > 0 && spawned >= max) {
+    if (max == 0) return;
+    if (spawned >= max) {
         active = false;
     }
 }

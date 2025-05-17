@@ -41,7 +41,14 @@ Level make_test_level(const Window& window, Image img) {
 
     EnemySpawner sp;
     sp.position = {window.width / 2.f, 0};
-    sp.max = 20;
+    sp.active = true;
+    level.spawners.push_back(sp);
+    EnemySpawner sp2;
+    sp2.active = true;
+    level.spawners.push_back(sp2);
+    sp.position = {100, 0};
+    level.spawners.push_back(sp);
+    sp.position = {100, 100};
     level.spawners.push_back(sp);
 
     Tower tower; tower.position = {window.width / 2.f, window.height / 1.7f};
@@ -49,6 +56,10 @@ Level make_test_level(const Window& window, Image img) {
     tower.position = {window.width - 100.f, window.height / 1.1f};
     level.towers.push_back(tower);
     tower.position = {window.width / 2.f + 50, window.height / 1.6f};
+    level.towers.push_back(tower);
+    tower.position = {window.width - 50.f, window.height / 1.1f};
+    level.towers.push_back(tower);
+    tower.position = {window.width / 2.f + 100, window.height / 1.6f};
     level.towers.push_back(tower);
     return level;
 }
@@ -80,7 +91,7 @@ int main() {
          
         window.draw(game);
 
-        DrawFPS(0, 0);
+        //DrawFPS(0, 0);
 
         EndDrawing();
     }

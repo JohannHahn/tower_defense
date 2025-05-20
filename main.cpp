@@ -71,10 +71,12 @@ Level make_test_level(const Window& window, Image img) {
     event.delay = .2f;
     
     for (int i = 0; i < ENEMY_TYPE_MAX; i++) {
-        event.enemies[i] = 100;
+        event.enemies[i] = 1000;
     }
     round.events.push_back(event);
     event.start = 5;
+    round.events.push_back(event);
+    event.start = 50;
     round.events.push_back(event);
     level.rounds.push_back(round);
     return level;
@@ -126,7 +128,7 @@ int main() {
             DrawRectangleRec(rec, RED);
         }
 
-        //DrawFPS(0, 0);
+        DrawFPS(0, initial_height / 2.f);
 
         EndDrawing();
     }

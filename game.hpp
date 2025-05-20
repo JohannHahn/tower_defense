@@ -326,7 +326,6 @@ void Level::update_towers() {
 }
 
 void Level::update_round() {
-    std::cout << (int)active_round << "\n";
     assert(active_round < (int)rounds.size());
 
     if (active_round >= 0)

@@ -124,6 +124,8 @@ void Renderer::draw_level(const Level& level) {
     DrawText(TextFormat("enemies.size = %d", level.enemies.size()), bounds.width / 2.f, 0, 20, WHITE);
     DrawText(TextFormat("bullets.size = %d", level.bullets.size()), bounds.width / 1.3f, 0, 20, WHITE);
     DrawText(TextFormat("spawners.size = %d", level.spawners.size()), bounds.width / 1.3f, 200, 20, WHITE);
+    DrawText(TextFormat("Time: %f", level.time), 10, 10, 20, WHITE);
+
 }
 
 void Renderer::draw_enemy(const Enemy& enemy, const Map& map) {
@@ -160,10 +162,10 @@ void Renderer::draw_tower(const Tower& tower, const std::vector<Enemy>& enemies)
 }
 
 void Renderer::draw_game(const Game& game) {
-    assert(game.active_level < game.levels.size());
+    assert(game.active_level < (int)game.levels.size());
 
     if (game.active_level >= 0) {
-        draw_level(game.get_current_level());
+        draw_level(game.levels[game.active_level]);
     } 
     // draw menu
     else {

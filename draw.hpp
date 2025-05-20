@@ -119,8 +119,7 @@ void Renderer::draw_level(const Level& level) {
         //if (spawner.active == false) continue;
         Color color = WHITE;
         if (spawner.active == false) color = GRAY;
-        DrawCircleV(spawner.position, 10.f, color);
-        DrawText(TextFormat("%f", spawner.time_since_spawn), spawner.position.x, spawner.position.y, 10.f, RED);
+        DrawCircleV(spawner.position, 5.f, color);
     }
     DrawText(TextFormat("enemies.size = %d", level.enemies.size()), bounds.width / 2.f, 0, 20, WHITE);
     DrawText(TextFormat("bullets.size = %d", level.bullets.size()), bounds.width / 1.3f, 0, 20, WHITE);

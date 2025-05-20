@@ -17,6 +17,7 @@ static Vector2 get_rec_center(Rectangle rec);
 
 static Rectangle to_rec(const Vector2& v1, const Vector2& v2);
 
+
 struct Map {
     Texture ground_tex;
     u64 width;
@@ -115,14 +116,34 @@ struct EnemySpawner {
     void spawn();
 };
 
+struct SpawnEvent {
+    float start;   
+    bool active = true;
+    std::vector<Enemy_Type> enemies;
+    
+    void update();
+};
+
+struct Round {
+    std::vector<EnemySpawner> spawners;
+    std::vector<SpawnEvent> events; 
+    float length;
+    float time = 0.f;
+    u64 next_event = 0;
+
+    void update();
+};
+
 struct Level {
     Map map;
     std::vector<Enemy> enemies;
     std::vector<Tower> towers;
     std::vector<EnemySpawner> spawners;
     std::vector<Projectile> bullets;
+    std::vector<Round> rounds;
     const char* name; 
     float time = 0.f;
+    int active_round = -1;
 
     Level(const char* name, Rectangle bounds);
 
@@ -137,6 +158,8 @@ struct Level {
     void update_spawners();
 
     void update_towers();
+
+    void update_round();
 
     void spawn_bullet(Tower& tower);
 
@@ -163,6 +186,7 @@ struct Game {
 
     std::string to_string();
 };
+#define GAME_IMPLEMENTATION
 #ifdef GAME_IMPLEMENTATION
 template <class T>
 static void remove_inactive_elements(std::vector<T>& array) {
@@ -236,6 +260,8 @@ Level::Level(const char* name, Rectangle bounds):name(name), map(bounds) {
 
 void Level::start() {
     time = 0.f;
+    // TODO::choose
+    active_round = 0;
 }
 
 void Level::update(Rectangle game_boundary) {
@@ -286,6 +312,12 @@ void Level::update_towers() {
     for (Tower& tower: towers) {
         remove_inactive_elements(tower.active_bullets);
     }
+}
+
+void Level::update_round() {
+    assert(active_round >= 0 && active_round < rounds.size());
+
+    rounds[active_round].update();
 }
 
 void Level::spawn_bullet(Tower& tower) {
@@ -449,4 +481,18 @@ void Map::ground_tex_from_image(const Image& img) {
     UnloadTexture(ground_tex);
     ground_tex = LoadTextureFromImage(img);
 }
+
+void Round::update() {
+    assert(next_event < events.size());
+
+    time += GetFrameTime();
+    while (next_event < events.size() && time >= events[next_event++].start) {};
+
+    for (int i = 0; i < next_event; ++i) {
+        SpawnEvent event = events[i];
+        if (event.active == false) continue;
+        //events[i]. 
+    }
+}
+
 #endif

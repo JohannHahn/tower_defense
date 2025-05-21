@@ -17,6 +17,7 @@ static Vector2 get_rec_center(Rectangle rec);
 
 static Rectangle to_rec(const Vector2& v1, const Vector2& v2);
 
+struct Level;
 
 struct Map {
     Texture ground_tex;
@@ -49,6 +50,7 @@ struct Enemy {
     Rectangle boundary = {0.f, 0.f, 10.f, 10.f};
     Vector2 direction = {1.f, 0.f};
     u64 next_waypoint = 0;
+    u64 id;
 
     bool hit = false;
 
@@ -76,6 +78,7 @@ struct Projectile {
     float radius = 10.f;
     float damage = 2.f;
     u64 target_index;
+    u64 target_id;
     bool target_lost = false;
     Vector2 target_last_pos;
     Vector2 position;
@@ -114,6 +117,7 @@ struct Tower {
 
 };
 
+
 struct EnemySpawner {
     bool active = true;
     Enemy_Type type = CHICKEN;
@@ -123,8 +127,8 @@ struct EnemySpawner {
     u64 max = 0;
     u64 spawned = 0;
 
-    void spawn(std::vector<Enemy>& enemies);
-    void update(std::vector<Enemy>& enemies);
+    void spawn(Level& level);
+    void update(Level& level);
 };
 
 struct SpawnEvent {
@@ -158,6 +162,7 @@ struct Level {
     const char* name; 
     float time = 0.f;
     int active_round = -1;
+    u64 object_id_counter = 0;
 
     Level(const char* name, Rectangle bounds);
 
@@ -178,6 +183,8 @@ struct Level {
     void spawn_bullet(Tower& tower);
 
     void add_tower(Tower tower);
+
+    void add_enemy(Enemy& enemy);
 
     std::string to_string(const char* prefix = "");
 
@@ -290,6 +297,11 @@ void Level::update(Rectangle game_boundary) {
     update_enemies();
 }
 
+void Level::add_enemy(Enemy& enemy) {
+    enemy.id = object_id_counter++;
+    enemies.push_back(enemy);
+}
+
 void Level::add_tower(Tower tower) {
     towers.push_back(tower);
     map.add_rec(to_rec(tower.position, tower.size));
@@ -313,7 +325,7 @@ void Level::update_spawners() {
     int i = 0;
     for (EnemySpawner& spawner: spawners) {
         if (spawner.active == false) continue;
-        spawner.update(enemies);
+        spawner.update(*this);
         i++;
     }
 }
@@ -348,6 +360,7 @@ void Level::spawn_bullet(Tower& tower) {
     // TODO convert method 
     bullet.type = (Projectile_Type)tower.type;
     bullet.target_index = tower.target_index;
+    bullet.target_id = enemies[tower.target_index].id;
     bullets.push_back(bullet);
     tower.shoot();
 }
@@ -361,18 +374,18 @@ std::string Level::to_string(const char* prefix) {
     return out;
 }
 
-void EnemySpawner::update(std::vector<Enemy>& enemies) {
+void EnemySpawner::update(Level& level) {
     if (active == false) return;
     time_since_spawn += GetFrameTime();
     if (time_since_spawn < delay) return;
-    spawn(enemies);
+    spawn(level);
 }
 
-void EnemySpawner::spawn(std::vector<Enemy>& enemies) {
+void EnemySpawner::spawn(Level& level) {
     Enemy enemy;
     enemy.type = type;
     enemy.set_position(position);
-    enemies.push_back(enemy);
+    level.add_enemy(enemy);
     time_since_spawn = 0.f;
     spawned++;
     // max = 0 => infinite spawn
@@ -432,17 +445,24 @@ void Projectile::update(std::vector<Enemy>& enemies, Rectangle game_boundary) {
         dir = Vector2Scale(direction, speed * GetFrameTime());
     }
     else if (type == SEEK) {
-        assert(target_index < enemies.size());
-
-        Enemy target = enemies[target_index];
-        if (target.active == false) { 
+        if (target_index >= enemies.size()) {
             target_lost = true;
+            active = false;
+            return;
+        } 
+        Enemy target = enemies[target_index];
+
+        if (target.active == false || target.id != target_id) { 
+            std::cout << "target_id = " << target_id << ", target.id = " << target.id << "\n";
+            target_lost = true;
+        }
+        else {
+            //std::cout << "target_id = " << target_id << ", target.id = " << target.id << "\n";
+            dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target.get_position(), position)), speed * GetFrameTime());
             target_last_pos = target.get_position();
         }
         if (target_lost) 
             dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target_last_pos, position)), speed * GetFrameTime());
-        else
-            dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target.get_position(), position)), speed * GetFrameTime());
     }
 
     position = Vector2Add(position, dir);

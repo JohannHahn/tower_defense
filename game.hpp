@@ -24,14 +24,19 @@ struct Map {
     u64 height;
     float road_width = 10.f;
     std::vector<Vector2> waypoints;
+    std::vector<Rectangle> occupied_areas;
 
     Map(Rectangle bounds);
 
     void ground_tex_from_image(const Image& img);
+
+    void add_rec(Rectangle rec);
+
+    bool check_free(Rectangle rec) const ;
 };
 
 enum Enemy_Type {
-    CHICKEN,
+    CHICKEN, ENEMY_TYPE_MAX
 };
 
 struct Enemy {
@@ -116,15 +121,19 @@ struct EnemySpawner {
     u64 max = 0;
     u64 spawned = 0;
 
-    void spawn();
+    void spawn(std::vector<Enemy>& enemies);
+    void update(std::vector<Enemy>& enemies);
 };
 
 struct SpawnEvent {
     float start;   
-    bool active = true;
-    std::vector<Enemy_Type> enemies;
+    float delay;
+    u64 enemies[ENEMY_TYPE_MAX];
+    Vector2 position;
+
+
+    void spawn(std::vector<Enemy>& enemies, std::vector<EnemySpawner>& spawners);
     
-    void update();
 };
 
 struct Round {
@@ -134,7 +143,7 @@ struct Round {
     float time = 0.f;
     u64 next_event = 0;
 
-    void update();
+    void update(std::vector<Enemy>& enemies, std::vector<EnemySpawner>& spawners);
 };
 
 struct Level {
@@ -166,6 +175,8 @@ struct Level {
 
     void spawn_bullet(Tower& tower);
 
+    void add_tower(Tower tower);
+
     std::string to_string(const char* prefix = "");
 
 };
@@ -173,6 +184,7 @@ struct Game {
     std::vector<Level> levels;
     int active_level = -1;
     Tower* selected_building = nullptr;
+    bool paused = true;
 
 
     Game();
@@ -185,7 +197,7 @@ struct Game {
 
     void update(Rectangle game_boundary);
 
-    const Level& get_current_level() const ;
+    Level& get_current_level();
 
     std::string to_string();
 };
@@ -237,11 +249,11 @@ void Game::select_level(u64 index) {
 }
 
 void Game::update(Rectangle game_boundary) {
-    assert(active_level < levels.size());
+    assert(active_level < (int)levels.size());
     levels[active_level].update(game_boundary);
 }
 
-const Level& Game::get_current_level() const {
+Level& Game::get_current_level() {
     assert(active_level < levels.size());
     return levels[active_level];
 }
@@ -268,10 +280,17 @@ void Level::start() {
 }
 
 void Level::update(Rectangle game_boundary) {
+    time += GetFrameTime();
+    update_round();
     update_spawners();
     update_towers();
     update_bullets(game_boundary);
     update_enemies();
+}
+
+void Level::add_tower(Tower tower) {
+    towers.push_back(tower);
+    map.add_rec(to_rec(tower.position, tower.size));
 }
 
 void Level::update_enemies() {
@@ -292,15 +311,7 @@ void Level::update_spawners() {
     int i = 0;
     for (EnemySpawner& spawner: spawners) {
         if (spawner.active == false) continue;
-        spawner.time_since_spawn += GetFrameTime();
-        if (spawner.time_since_spawn < spawner.delay) continue;
-        
-        Enemy enemy;
-        enemy.type = spawner.type;
-        enemy.set_position(spawner.position);
-        spawner.spawn();
-        enemies.push_back(enemy);
-        spawner.time_since_spawn = 0.f;
+        spawner.update(enemies);
         i++;
     }
 }
@@ -318,9 +329,10 @@ void Level::update_towers() {
 }
 
 void Level::update_round() {
-    assert(active_round >= 0 && active_round < rounds.size());
+    assert(active_round < (int)rounds.size());
 
-    rounds[active_round].update();
+    if (active_round >= 0)
+        rounds[active_round].update(enemies, spawners);
 }
 
 void Level::spawn_bullet(Tower& tower) {
@@ -341,14 +353,29 @@ std::string Level::to_string(const char* prefix) {
     out += prefix; out += "active buildings: "; out += std::to_string(towers.size()); out += "\n";  
     return out;
 }
-void EnemySpawner::spawn() {
+
+void EnemySpawner::update(std::vector<Enemy>& enemies) {
     if (active == false) return;
+    time_since_spawn += GetFrameTime();
+    if (time_since_spawn < delay) return;
+    spawn(enemies);
+}
+
+void EnemySpawner::spawn(std::vector<Enemy>& enemies) {
+    Enemy enemy;
+    enemy.type = type;
+    enemy.set_position(position);
+    enemies.push_back(enemy);
+    time_since_spawn = 0.f;
     spawned++;
+    // max = 0 => infinite spawn
     if (max == 0) return;
+
     if (spawned >= max) {
         active = false;
     }
 }
+
 void Tower::update(const std::vector<Enemy> enemies) {
     // find target
     time_since_shot += GetFrameTime() * 10;
@@ -493,16 +520,35 @@ void Map::ground_tex_from_image(const Image& img) {
     ground_tex = LoadTextureFromImage(img);
 }
 
-void Round::update() {
-    assert(next_event < events.size());
+void Map::add_rec(Rectangle rec) {
+    occupied_areas.push_back(rec);
+}
+
+bool Map::check_free(Rectangle rec) const {
+    for (Rectangle occ : occupied_areas) {
+        if (CheckCollisionRecs(rec, occ)) return false;
+    }
+    return true;
+}
+
+void Round::update(std::vector<Enemy>& enemies, std::vector<EnemySpawner>& spawners) {
+    assert (next_event <= events.size());
 
     time += GetFrameTime();
-    while (next_event < events.size() && time >= events[next_event++].start) {};
+    while (next_event < events.size() && time >= events[next_event].start) {
+        events[next_event].spawn(enemies, spawners);
+        next_event++;
+    };
+}
 
-    for (int i = 0; i < next_event; ++i) {
-        SpawnEvent event = events[i];
-        if (event.active == false) continue;
-        //events[i]. 
+void SpawnEvent::spawn(std::vector<Enemy>& enemies, std::vector<EnemySpawner>& spawners) {
+    for (int i = 0; i < ENEMY_TYPE_MAX; ++i) {
+        EnemySpawner spawner;
+        spawner.position = position;
+        spawner.max = this->enemies[i];
+        spawner.type = (Enemy_Type)i;
+        spawner.delay = delay;
+        spawners.push_back(spawner);
     }
 }
 

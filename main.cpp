@@ -1,3 +1,4 @@
+#include "raylib.h"
 #include <iostream>
 #include <cstring>
 #include <time.h>
@@ -39,28 +40,45 @@ Level make_test_level(const Window& window, Image img) {
     }
     level.map.ground_tex_from_image(img);
 
-    EnemySpawner sp;
-    sp.position = {window.width / 2.f, 0};
-    sp.active = true;
-    level.spawners.push_back(sp);
-    EnemySpawner sp2;
-    sp2.active = true;
-    level.spawners.push_back(sp2);
-    sp.position = {100, 0};
-    level.spawners.push_back(sp);
-    sp.position = {100, 100};
-    level.spawners.push_back(sp);
+    //EnemySpawner sp;
+    //sp.position = {window.width / 2.f, 0};
+    //sp.active = true;
+    //level.spawners.push_back(sp);
+    //EnemySpawner sp2;
+    //sp2.active = true;
+    //level.spawners.push_back(sp2);
+    //sp.position = {100, 0};
+    //level.spawners.push_back(sp);
+    //sp.position = {100, 100};
+    //level.spawners.push_back(sp);
 
     Tower tower; tower.position = {window.width / 2.f, window.height / 1.7f};
-    level.towers.push_back(tower);
+    level.add_tower(tower);
     tower.position = {window.width - 100.f, window.height / 1.1f};
-    level.towers.push_back(tower);
+    level.add_tower(tower);
     tower.position = {window.width / 2.f + 50, window.height / 1.6f};
-    level.towers.push_back(tower);
+    level.add_tower(tower);
     tower.position = {window.width - 50.f, window.height / 1.1f};
-    level.towers.push_back(tower);
+    level.add_tower(tower);
     tower.position = {window.width / 2.f + 100, window.height / 1.6f};
-    level.towers.push_back(tower);
+    level.add_tower(tower);
+
+    Round round;
+    round.length = 100; 
+    SpawnEvent event;
+    event.position = {0, 0};
+    event.start = 0.5f;
+    event.delay = .2f;
+    
+    for (int i = 0; i < ENEMY_TYPE_MAX; i++) {
+        event.enemies[i] = 1000;
+    }
+    round.events.push_back(event);
+    event.start = 5;
+    round.events.push_back(event);
+    event.start = 50;
+    round.events.push_back(event);
+    level.rounds.push_back(round);
     return level;
 }
 
@@ -84,14 +102,33 @@ int main() {
 
     while (!WindowShouldClose()) {
         window.resize_if_needed();
-        game.update(window.get_game_boundary());
+        if (!game.paused) {
+            game.update(window.get_game_boundary());
+        }
 
         BeginDrawing();
         ClearBackground(BLACK);
          
         window.draw(game);
 
-        //DrawFPS(0, 0);
+        if (IsKeyPressed(KEY_SPACE)) {
+            game.paused = !game.paused;
+        }
+        Vector2 position = {(float)GetMouseX(), (float)GetMouseY()};
+        Tower tower;
+        tower.position = position;
+        Rectangle rec = {to_rec(tower.position, tower.size)};
+        if (game.get_current_level().map.check_free(rec)) {
+            DrawRectangleRec(rec, GREEN);
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                game.get_current_level().add_tower(tower);
+            }
+                
+        } else {
+            DrawRectangleRec(rec, RED);
+        }
+
+        DrawFPS(0, initial_height / 2.f);
 
         EndDrawing();
     }

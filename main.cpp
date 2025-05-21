@@ -85,8 +85,8 @@ Level make_test_level(const Window& window, Image img) {
 int main() {
     Log_Level global_log_lvl = FULL;
 
-    constexpr const u64 initial_width = 900;
-    constexpr const u64 initial_height = 600;
+    constexpr const u64 initial_width = 1200;
+    constexpr const u64 initial_height = 1200;
 
     const char* img_path = "perlin_noise.bmp";
     Image img = LoadImage(img_path);

@@ -68,10 +68,10 @@ Level make_test_level(const Window& window, Image img) {
     SpawnEvent event;
     event.position = {0, 0};
     event.start = 0.5f;
-    event.delay = .2f;
+    event.delay = 2.f;
     
     for (int i = 0; i < ENEMY_TYPE_MAX; i++) {
-        event.enemies[i] = 1000;
+        event.enemies[i] = 10;
     }
     round.events.push_back(event);
     event.start = 5;

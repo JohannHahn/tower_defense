@@ -42,7 +42,7 @@ enum Enemy_Type {
 struct Enemy {
     bool active = true;
     float hp = 100.f;
-    float speed = 100.f;
+    float speed = 200.f;
     float max_speed = 100.f;
     float damage = 1.f;
     Enemy_Type type = CHICKEN;
@@ -66,22 +66,27 @@ struct Enemy {
     void get_hit(float dmg);
 };
 
+enum Projectile_Type {
+    STRAIGHT, SEEK
+};
 
 struct Projectile {
     bool active = true;
-    float speed = 2000.f; 
-    float radius = 2.f;
+    float speed = 100.f; 
+    float radius = 10.f;
     float damage = 2.f;
+    u64 target_index;
+    bool target_lost = false;
+    Vector2 target_last_pos;
     Vector2 position;
-    // TODO seeking
-    //Vector2 target;
     Vector2 direction;
+    Projectile_Type type = STRAIGHT;
 
     void update(std::vector<Enemy>& enemies, Rectangle game_boundary);
 };
 
 enum Tower_Type {
-    BASIC,
+    TOWER_BASIC, TOWER_SEEK  
 };
 
 struct Tower {
@@ -90,8 +95,8 @@ struct Tower {
     float range = 100.f;
     float reload_time = 2.f;
     float time_since_shot = reload_time;
+    Tower_Type type = TOWER_SEEK;
     std::vector<Projectile> active_bullets;
-    Tower_Type type = BASIC;
 
     Vector2 position = {0.f, 0.f};
     Vector2 size = {10.f, 10.f};
@@ -334,10 +339,15 @@ void Level::update_round() {
 
 void Level::spawn_bullet(Tower& tower) {
     if (tower.target_lock == false) return;
+    assert(tower.target_index < enemies.size());
+
     Projectile bullet;
     bullet.position = tower.get_center();
     bullet.direction = tower.direction;
     bullet.damage += tower.damage;
+    // TODO convert method 
+    bullet.type = (Projectile_Type)tower.type;
+    bullet.target_index = tower.target_index;
     bullets.push_back(bullet);
     tower.shoot();
 }
@@ -415,7 +425,26 @@ Vector2 Tower::get_center() const {
 }
 void Projectile::update(std::vector<Enemy>& enemies, Rectangle game_boundary) {
     if (active == false) return;
-    Vector2 dir = Vector2Scale(direction, speed * GetFrameTime());
+
+
+    Vector2 dir;
+    if (type == STRAIGHT) {
+        dir = Vector2Scale(direction, speed * GetFrameTime());
+    }
+    else if (type == SEEK) {
+        assert(target_index < enemies.size());
+
+        Enemy target = enemies[target_index];
+        if (target.active == false) { 
+            target_lost = true;
+            target_last_pos = target.get_position();
+        }
+        if (target_lost) 
+            dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target_last_pos, position)), speed * GetFrameTime());
+        else
+            dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target.get_position(), position)), speed * GetFrameTime());
+    }
+
     position = Vector2Add(position, dir);
 
     if (!CheckCollisionCircleRec(position, radius, game_boundary)) {

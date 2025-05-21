@@ -11,6 +11,7 @@ struct Renderer {
     void draw_level(const Level& level);
     void draw_enemy(const Enemy& enemy, const Map& map);
     void draw_tower(const Tower& tower, const std::vector<Enemy>& enemies);
+    void draw_bullet(const Projectile& bullet);
     void draw_game(const Game& game);
 };
 
@@ -111,8 +112,7 @@ void Renderer::draw_level(const Level& level) {
     }
     
     for (const Projectile& bullet: level.bullets) {
-        if (bullet.active == false) continue;
-        DrawCircleV(bullet.position, 1.f, YELLOW);
+        draw_bullet(bullet);
     }
 
     for (const EnemySpawner& spawner: level.spawners) {
@@ -126,6 +126,11 @@ void Renderer::draw_level(const Level& level) {
     DrawText(TextFormat("spawners.size = %d", level.spawners.size()), bounds.width / 1.3f, 200, 20, WHITE);
     DrawText(TextFormat("Time: %f", level.time), 10, 10, 20, WHITE);
 
+}
+
+void Renderer::draw_bullet(const Projectile& bullet) {
+    if (bullet.active == false) return;
+    DrawCircleV(bullet.position, bullet.radius, YELLOW);
 }
 
 void Renderer::draw_enemy(const Enemy& enemy, const Map& map) {

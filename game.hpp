@@ -61,6 +61,9 @@ struct Enemy {
     void get_hit(float dmg);
 };
 
+enum Projectile_Type {
+    STRAIGHT, SEEK
+};
 
 struct Projectile {
     bool active = true;
@@ -68,15 +71,15 @@ struct Projectile {
     float radius = 2.f;
     float damage = 2.f;
     Vector2 position;
-    // TODO seeking
-    //Vector2 target;
+    Vector2 target;
     Vector2 direction;
+    Projectile_Type type = STRAIGHT;
 
     void update(std::vector<Enemy>& enemies, Rectangle game_boundary);
 };
 
 enum Tower_Type {
-    BASIC,
+    TOWER_BASIC, TOWER_SEEK  
 };
 
 struct Tower {
@@ -85,8 +88,8 @@ struct Tower {
     float range = 100.f;
     float reload_time = 2.f;
     float time_since_shot = reload_time;
+    Tower_Type type = TOWER_SEEK;
     std::vector<Projectile> active_bullets;
-    Tower_Type type = BASIC;
 
     Vector2 position = {0.f, 0.f};
     Vector2 size = {10.f, 10.f};
@@ -388,7 +391,15 @@ Vector2 Tower::get_center() const {
 }
 void Projectile::update(std::vector<Enemy>& enemies, Rectangle game_boundary) {
     if (active == false) return;
-    Vector2 dir = Vector2Scale(direction, speed * GetFrameTime());
+
+    Vector2 dir;
+    if (type == STRAIGHT) {
+        dir = Vector2Scale(direction, speed * GetFrameTime());
+    }
+    else if (type == SEEK) {
+        dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target, position)), speed * GetFrameTime());
+    }
+
     position = Vector2Add(position, dir);
 
     if (!CheckCollisionCircleRec(position, radius, game_boundary)) {

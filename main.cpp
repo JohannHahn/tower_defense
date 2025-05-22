@@ -28,7 +28,7 @@ enum Log_Level {
 
 Level make_test_level(const Window& window, Image img) {
     Level level = Level("test", window.get_game_boundary());
-    int point_count = 50;
+    int point_count = 10;
     for (int i = 0; i < point_count; ++i) {
         level.map.waypoints.push_back({(float)i * window.width / (float)point_count, (float)i * window.height / (float)point_count});
         if (GetRandomValue(0, 2) == 0) {
@@ -71,13 +71,13 @@ Level make_test_level(const Window& window, Image img) {
     event.delay = 1.f;
     
     for (int i = 0; i < ENEMY_TYPE_MAX; i++) {
-        event.enemies[i] = 20;
+        event.enemies[i] = 1;
     }
     round.events.push_back(event);
-    event.start = 2;
-    round.events.push_back(event);
-    event.start = 20;
-    round.events.push_back(event);
+    //event.start = 2;
+    //round.events.push_back(event);
+    //event.start = 20;
+    //round.events.push_back(event);
     level.rounds.push_back(round);
     return level;
 }

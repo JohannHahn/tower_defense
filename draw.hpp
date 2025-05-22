@@ -10,7 +10,7 @@ struct Renderer {
     void draw_map(const Map& map); 
     void draw_level(const Level& level);
     void draw_enemy(const Enemy& enemy, const Map& map);
-    void draw_tower(const Tower& tower, const std::vector<Enemy>& enemies);
+    void draw_tower(const Tower& tower, const std::vector<EnemyRecord>& enemy_records);
     void draw_bullet(const Projectile& bullet);
     void draw_game(const Game& game);
 };
@@ -108,7 +108,7 @@ void Renderer::draw_level(const Level& level) {
     }
     // draw buildings
     for (const Tower& tower: level.towers) {
-        draw_tower(tower, level.enemies);
+        draw_tower(tower, level.enemy_records);
     }
     
     for (const Projectile& bullet: level.bullets) {
@@ -154,7 +154,7 @@ void Renderer::draw_enemy(const Enemy& enemy, const Map& map) {
     // draw "model"
 }
 
-void Renderer::draw_tower(const Tower& tower, const std::vector<Enemy>& enemies) {
+void Renderer::draw_tower(const Tower& tower, const std::vector<EnemyRecord>& enemy_records) {
     if (draw_debug) {
         Color color = tower.target_lock ? GREEN : GRAY;
         Rectangle tower_rec = {tower.position.x, tower.position.y, tower.size.x, tower.size.y};
@@ -162,7 +162,7 @@ void Renderer::draw_tower(const Tower& tower, const std::vector<Enemy>& enemies)
         //DrawLineV(tower.get_center(), Vector2Add(tower.get_center(), Vector2Scale(tower.direction, 40.f)), GREEN);
         DrawCircleLinesV(tower.get_center(), tower.range, RED);
         if (tower.target_lock) {
-            DrawLineV(tower.get_center(), enemies[tower.target_id].get_center(), GRAY);
+            DrawLineV(tower.get_center(), enemy_records[tower.target_id].center, RED);
         }
     }
 }

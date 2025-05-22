@@ -43,7 +43,7 @@ enum Enemy_Type {
 struct Enemy {
     bool active = true;
     float hp = 100.f;
-    float speed = 200.f;
+    float speed = 10.f;
     float damage = 1.f;
     Enemy_Type type = CHICKEN;
     Rectangle boundary = {0.f, 0.f, 10.f, 10.f};
@@ -252,6 +252,7 @@ void Game::start() {
     assert(active_level < levels.size());
 
     levels[active_level].start();
+    paused = false;
 }
 
 void Game::select_level(u64 index) {
@@ -398,7 +399,6 @@ void EnemySpawner::spawn(Level& level) {
 }
 
 void Tower::update(const std::vector<Enemy>& enemies, const std::vector<EnemyRecord>& enemy_records) {
-    // find target
     time_since_shot += GetFrameTime();
     if (target_lock == false) {
         u64 i = 0;
@@ -417,16 +417,12 @@ void Tower::update(const std::vector<Enemy>& enemies, const std::vector<EnemyRec
     if (target_lock) {
         EnemyRecord target = enemy_records[target_id];
         Vector2 line_to_target = Vector2Subtract(target.center, position);
-        std::cout << "target_index = " << target_id << "\n";
-        std::cout << "target.active = " << target.active << "\n";
-        std::cout << "length = " << Vector2Length(line_to_target) << ", range = " << range << "\n";
         if (target.active == false || Vector2Length(line_to_target) > range) {
             target_lock = false;
             return;
         }
         
         direction = Vector2Normalize(line_to_target);
-        if (Vector2Length(line_to_target) > range) target_lock = false;
     }
 }
 
@@ -500,25 +496,29 @@ void Enemy::update(const std::vector<Vector2>& waypoints) {
     if (active == false) return;
     if (hit) hit = false;
 
+    std::cout << "next wp = " << next_waypoint << "\n";
     Vector2 wp = waypoints[next_waypoint]; 
-    Vector2 pos = get_position();
+    Vector2 pos = get_center();
     float distance = Vector2Length(Vector2Subtract(wp, pos));
+
+    std::cout << "position = " << pos.x << ", " << pos.y << "\n"; 
+    std::cout << "distance = " << distance << "\n";
 
     if (distance > 100.f) {
         find_nearest_waypoint(waypoints);
     }
 
-    direction = Vector2Scale(Vector2Normalize(Vector2Subtract(wp, pos)), speed * GetFrameTime());
+    direction = Vector2Scale(Vector2Normalize(Vector2Subtract(wp, get_center())), speed * GetFrameTime());
     pos = Vector2Add(pos, direction);
-    boundary.x = pos.x;
-    boundary.y = pos.y;
+    boundary.x = pos.x - boundary.width / 2.f;
+    boundary.y = pos.y - boundary.height / 2.f;
 
     check_waypoint(wp, waypoints.size());
 }
 
 void Enemy::check_waypoint(const Vector2 wp, u64 waypoints_size) {
-    Vector2 pos = {boundary.x, boundary.y};
-    if (Vector2Length(Vector2Subtract(pos, wp)) < 1.f) {
+    Vector2 pos = get_position();
+    if (Vector2Distance(pos, wp) < sqrt(boundary.width * boundary.width + boundary.height * boundary.height)) {
         next_waypoint++;
     }
     if (next_waypoint >= waypoints_size) {
@@ -528,11 +528,12 @@ void Enemy::check_waypoint(const Vector2 wp, u64 waypoints_size) {
 }
 
 void Enemy::find_nearest_waypoint(const std::vector<Vector2>& waypoints) {
-    float min_distance = 99999999.f; 
+    if (waypoints.size() == 0) return;
+    float min_distance = 999999.f;
     u64 nearest = 0;
     int i = 0;
     for (const Vector2& wp : waypoints) {
-        float wp_dist = Vector2Distance(get_center(), wp);
+        float wp_dist = Vector2Distance(wp, get_center());
         if (wp_dist < min_distance) {
             nearest = i;
             min_distance = wp_dist;

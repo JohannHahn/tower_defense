@@ -44,7 +44,6 @@ struct Enemy {
     bool active = true;
     float hp = 100.f;
     float speed = 200.f;
-    float max_speed = 100.f;
     float damage = 1.f;
     Enemy_Type type = CHICKEN;
     Rectangle boundary = {0.f, 0.f, 10.f, 10.f};
@@ -68,24 +67,27 @@ struct Enemy {
     void get_hit(float dmg);
 };
 
+struct EnemyRecord {
+    bool active;
+    Vector2 center;
+};
+
 enum Projectile_Type {
     STRAIGHT, SEEK
 };
 
 struct Projectile {
     bool active = true;
-    float speed = 100.f; 
+    float speed = 500.f; 
     float radius = 10.f;
     float damage = 2.f;
-    u64 target_index;
     u64 target_id;
     bool target_lost = false;
-    Vector2 target_last_pos;
     Vector2 position;
     Vector2 direction;
     Projectile_Type type = STRAIGHT;
 
-    void update(std::vector<Enemy>& enemies, Rectangle game_boundary);
+    void update(std::vector<Enemy>& enemies, std::vector<EnemyRecord>& enemy_records, Rectangle game_boundary);
 };
 
 enum Tower_Type {
@@ -96,18 +98,17 @@ struct Tower {
     float hp = 100.f;
     float damage = 10.f;
     float range = 100.f;
-    float reload_time = 2.f;
+    float reload_time = 0.2f;
     float time_since_shot = reload_time;
     Tower_Type type = TOWER_SEEK;
-    std::vector<Projectile> active_bullets;
 
     Vector2 position = {0.f, 0.f};
     Vector2 size = {10.f, 10.f};
     Vector2 direction = {10.f, 10.f};
-    u64 target_index;
+    u64 target_id;
     bool target_lock = false;
 
-    void update(const std::vector<Enemy> enemies);
+    void update(const std::vector<Enemy>& enemies, const std::vector<EnemyRecord>& enemy_records);
 
     bool shot_ready();
 
@@ -155,6 +156,7 @@ struct Round {
 struct Level {
     Map map;
     std::vector<Enemy> enemies;
+    std::vector<EnemyRecord> enemy_records;
     std::vector<Tower> towers;
     std::vector<EnemySpawner> spawners;
     std::vector<Projectile> bullets;
@@ -300,6 +302,8 @@ void Level::update(Rectangle game_boundary) {
 void Level::add_enemy(Enemy& enemy) {
     enemy.id = object_id_counter++;
     enemies.push_back(enemy);
+    EnemyRecord record = {.active = enemy.active, .center = enemy.get_center()};
+    enemy_records.push_back(record);
 }
 
 void Level::add_tower(Tower tower) {
@@ -310,13 +314,15 @@ void Level::add_tower(Tower tower) {
 void Level::update_enemies() {
     for (Enemy& enemy : enemies) {
         enemy.update(map.waypoints);
+        enemy_records[enemy.id].active = enemy.active;
+        enemy_records[enemy.id].center = enemy.get_center();
     }
     remove_inactive_elements(enemies);
 }
 
 void Level::update_bullets(Rectangle game_boundary) {
     for (Projectile& bullet : bullets) {
-        bullet.update(enemies, game_boundary);
+        bullet.update(enemies, enemy_records, game_boundary);
     } 
     remove_inactive_elements(bullets);
 }
@@ -332,14 +338,11 @@ void Level::update_spawners() {
 
 void Level::update_towers() {
     for (Tower& tower : towers) {
-        tower.update(enemies);
+        tower.update(enemies, enemy_records);
         if (tower.shot_ready()) {
             spawn_bullet(tower);
         }
     }     
-    for (Tower& tower: towers) {
-        remove_inactive_elements(tower.active_bullets);
-    }
 }
 
 void Level::update_round() {
@@ -351,7 +354,6 @@ void Level::update_round() {
 
 void Level::spawn_bullet(Tower& tower) {
     if (tower.target_lock == false) return;
-    assert(tower.target_index < enemies.size());
 
     Projectile bullet;
     bullet.position = tower.get_center();
@@ -359,8 +361,7 @@ void Level::spawn_bullet(Tower& tower) {
     bullet.damage += tower.damage;
     // TODO convert method 
     bullet.type = (Projectile_Type)tower.type;
-    bullet.target_index = tower.target_index;
-    bullet.target_id = enemies[tower.target_index].id;
+    bullet.target_id = tower.target_id;
     bullets.push_back(bullet);
     tower.shoot();
 }
@@ -396,16 +397,16 @@ void EnemySpawner::spawn(Level& level) {
     }
 }
 
-void Tower::update(const std::vector<Enemy> enemies) {
+void Tower::update(const std::vector<Enemy>& enemies, const std::vector<EnemyRecord>& enemy_records) {
     // find target
-    time_since_shot += GetFrameTime() * 10;
+    time_since_shot += GetFrameTime();
     if (target_lock == false) {
         u64 i = 0;
-        for (const Enemy& enemy : enemies) {
+        for (const Enemy& enemy: enemies) {
             if (enemy.active == false) continue;
             Vector2 line_to_target = Vector2Subtract(enemy.get_center(), position);
             if (Vector2Length(line_to_target) <= range) {
-                target_index = i;
+                target_id = enemy.id;
                 target_lock = true;
                 break;
             }
@@ -414,12 +415,16 @@ void Tower::update(const std::vector<Enemy> enemies) {
     }
 
     if (target_lock) {
-        if (target_index >= enemies.size() ) {
+        EnemyRecord target = enemy_records[target_id];
+        Vector2 line_to_target = Vector2Subtract(target.center, position);
+        std::cout << "target_index = " << target_id << "\n";
+        std::cout << "target.active = " << target.active << "\n";
+        std::cout << "length = " << Vector2Length(line_to_target) << ", range = " << range << "\n";
+        if (target.active == false || Vector2Length(line_to_target) > range) {
             target_lock = false;
-
             return;
         }
-        Vector2 line_to_target = Vector2Subtract(enemies[target_index].get_center(), get_center());
+        
         direction = Vector2Normalize(line_to_target);
         if (Vector2Length(line_to_target) > range) target_lock = false;
     }
@@ -436,7 +441,7 @@ void Tower::shoot() {
 Vector2 Tower::get_center() const {
     return {position.x + size.x / 2.f, position.y + size.y / 2.f};
 }
-void Projectile::update(std::vector<Enemy>& enemies, Rectangle game_boundary) {
+void Projectile::update(std::vector<Enemy>& enemies, std::vector<EnemyRecord>& enemy_records, Rectangle game_boundary) {
     if (active == false) return;
 
 
@@ -445,24 +450,21 @@ void Projectile::update(std::vector<Enemy>& enemies, Rectangle game_boundary) {
         dir = Vector2Scale(direction, speed * GetFrameTime());
     }
     else if (type == SEEK) {
-        if (target_index >= enemies.size()) {
-            target_lost = true;
-            active = false;
-            return;
-        } 
-        Enemy target = enemies[target_index];
-
-        if (target.active == false || target.id != target_id) { 
-            std::cout << "target_id = " << target_id << ", target.id = " << target.id << "\n";
-            target_lost = true;
+        // TODO:: find target -> array move event? listneres?
+        EnemyRecord target = enemy_records.at(target_id);
+        if (target.active == false) { 
+            if (!target_lost) {
+                target_lost = true;
+                dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target.center, position)), speed * GetFrameTime());
+                direction = dir;
+            }
         }
         else {
-            //std::cout << "target_id = " << target_id << ", target.id = " << target.id << "\n";
-            dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target.get_position(), position)), speed * GetFrameTime());
-            target_last_pos = target.get_position();
+            dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target.center, position)), speed * GetFrameTime());
         }
-        if (target_lost) 
-            dir = Vector2Scale(Vector2Normalize(Vector2Subtract(target_last_pos, position)), speed * GetFrameTime());
+        if (target_lost) { 
+            dir = direction;
+        }
     }
 
     position = Vector2Add(position, dir);

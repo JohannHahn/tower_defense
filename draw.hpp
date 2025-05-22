@@ -122,6 +122,7 @@ void Renderer::draw_level(const Level& level) {
         DrawCircleV(spawner.position, 5.f, color);
     }
     DrawText(TextFormat("enemies.size = %d", level.enemies.size()), bounds.width / 2.f, 0, 20, WHITE);
+    DrawText(TextFormat("enemy_records.size = %d", level.enemy_records.size()), bounds.width / 2.f, 100, 20, WHITE);
     DrawText(TextFormat("bullets.size = %d", level.bullets.size()), bounds.width / 1.3f, 0, 20, WHITE);
     DrawText(TextFormat("spawners.size = %d", level.spawners.size()), bounds.width / 1.3f, 200, 20, WHITE);
     DrawText(TextFormat("Time: %f", level.time), 10, 10, 20, WHITE);
@@ -161,7 +162,7 @@ void Renderer::draw_tower(const Tower& tower, const std::vector<Enemy>& enemies)
         //DrawLineV(tower.get_center(), Vector2Add(tower.get_center(), Vector2Scale(tower.direction, 40.f)), GREEN);
         DrawCircleLinesV(tower.get_center(), tower.range, RED);
         if (tower.target_lock) {
-            DrawLineV(tower.get_center(), enemies[tower.target_index].get_center(), GRAY);
+            DrawLineV(tower.get_center(), enemies[tower.target_id].get_center(), GRAY);
         }
     }
 }

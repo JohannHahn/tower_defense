@@ -43,7 +43,7 @@ enum Enemy_Type {
 struct Enemy {
     bool active = true;
     float hp = 100.f;
-    float speed = 10.f;
+    float speed = 500.f;
     float damage = 1.f;
     Enemy_Type type = CHICKEN;
     Rectangle boundary = {0.f, 0.f, 10.f, 10.f};
@@ -59,8 +59,6 @@ struct Enemy {
     Vector2 get_center() const;
 
     void update(const std::vector<Vector2>& waypoints);
-
-    void check_waypoint(const Vector2 wp, u64 waypoints_size);
 
     void find_nearest_waypoint(const std::vector<Vector2>& waypoints);
 
@@ -496,7 +494,10 @@ void Enemy::update(const std::vector<Vector2>& waypoints) {
     if (active == false) return;
     if (hit) hit = false;
 
+    assert(next_waypoint < waypoints.size());
+
     std::cout << "next wp = " << next_waypoint << "\n";
+    std::cout << "waypoints.size = " << waypoints.size() << "\n";
     Vector2 wp = waypoints[next_waypoint]; 
     Vector2 pos = get_center();
     float distance = Vector2Length(Vector2Subtract(wp, pos));
@@ -504,28 +505,20 @@ void Enemy::update(const std::vector<Vector2>& waypoints) {
     std::cout << "position = " << pos.x << ", " << pos.y << "\n"; 
     std::cout << "distance = " << distance << "\n";
 
-    if (distance > 100.f) {
-        find_nearest_waypoint(waypoints);
-    }
-
     direction = Vector2Scale(Vector2Normalize(Vector2Subtract(wp, get_center())), speed * GetFrameTime());
     pos = Vector2Add(pos, direction);
     boundary.x = pos.x - boundary.width / 2.f;
     boundary.y = pos.y - boundary.height / 2.f;
 
-    check_waypoint(wp, waypoints.size());
+    if (distance < 10.f) {
+        //find_nearest_waypoint(waypoints);
+        next_waypoint++;
+        if (next_waypoint >= waypoints.size()) {
+            active = false;
+        }
+    }
 }
 
-void Enemy::check_waypoint(const Vector2 wp, u64 waypoints_size) {
-    Vector2 pos = get_position();
-    if (Vector2Distance(pos, wp) < sqrt(boundary.width * boundary.width + boundary.height * boundary.height)) {
-        next_waypoint++;
-    }
-    if (next_waypoint >= waypoints_size) {
-        active = false;
-        return;
-    }
-}
 
 void Enemy::find_nearest_waypoint(const std::vector<Vector2>& waypoints) {
     if (waypoints.size() == 0) return;
@@ -545,6 +538,7 @@ void Enemy::find_nearest_waypoint(const std::vector<Vector2>& waypoints) {
 
 void Enemy::get_hit(float dmg) {
     hp -= dmg;
+    if (hp <= 0.f) active = false;
     hit = true;
 }
 Map::Map(Rectangle bounds): width(bounds.width), height(bounds.height) {

@@ -28,7 +28,7 @@ enum Log_Level {
 
 Level make_test_level(const Window& window, Image img) {
     Level level = Level("test", window.get_game_boundary());
-    int point_count = 10;
+    int point_count = 50;
     for (int i = 0; i < point_count; ++i) {
         level.map.waypoints.push_back({(float)i * window.width / (float)point_count, (float)i * window.height / (float)point_count});
         if (GetRandomValue(0, 2) == 0) {

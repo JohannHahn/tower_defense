@@ -43,7 +43,7 @@ enum Enemy_Type {
 struct Enemy {
     bool active = true;
     float hp = 100.f;
-    float speed = 500.f;
+    float speed = 00.f;
     float damage = 1.f;
     Enemy_Type type = CHICKEN;
     Rectangle boundary = {0.f, 0.f, 10.f, 10.f};

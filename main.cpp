@@ -6,6 +6,7 @@
 #include "game.hpp"
 #define DRAW_IMPLEMENTATION
 #include "draw.hpp"
+#include "gui.hpp"
 
 typedef uint64_t u64;
 typedef uint32_t u32;
@@ -82,6 +83,10 @@ Level make_test_level(const Window& window, Image img) {
     return level;
 }
 
+void button_callback(int a, ...) {
+    std::cout << "a = " << a << "\n";
+};
+
 int main() {
     Log_Level global_log_lvl = FULL;
 
@@ -100,16 +105,28 @@ int main() {
     game.levels.push_back(make_test_level(window, img));
     game.start();
 
+    Gui gui;
+    Menu menu;
+    float button_width = 100.f;
+    float button_height = 50.f;
+    Rectangle br = {window.width / 2.f - button_width / 2.f, window.height - button_height, button_width, button_height};
+    Button button; 
+    button.boundary = br;
+    button.text = "helloooooooooooooooooooooooooooooo";
+    menu.buttons.push_back(button);
+    gui.menues.push_back(menu);
+
     while (!WindowShouldClose()) {
         window.resize_if_needed();
         if (!game.paused) {
             game.update(window.get_game_boundary());
         }
+        gui.update();
 
         BeginDrawing();
         ClearBackground(BLACK);
          
-        window.draw(game);
+        window.draw(game, gui);
 
         if (IsKeyPressed(KEY_SPACE)) {
             game.paused = !game.paused;

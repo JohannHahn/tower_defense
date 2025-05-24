@@ -1,7 +1,10 @@
 #pragma once
 
 #include "game.hpp"
+#include "gui.hpp"
 #include "raylib.h"
+
+using namespace GUI;
 
 struct Renderer {
     Rectangle bounds;
@@ -13,6 +16,8 @@ struct Renderer {
     void draw_tower(const Tower& tower, const std::vector<EnemyRecord>& enemy_records);
     void draw_bullet(const Projectile& bullet);
     void draw_game(const Game& game);
+    void draw_gui(const Gui& gui);
+
 };
 
 struct Window {
@@ -32,7 +37,7 @@ struct Window {
 
     void set_fps(u64 fps);
 
-    void draw(const Game& game);
+    void draw(const Game& game, const Gui& gui);
 
     Rectangle get_game_boundary() const;
 };
@@ -56,8 +61,9 @@ void Window::resize_if_needed() {
     this->width = GetScreenWidth();
     this->height = GetScreenHeight();
 }
-void Window::draw(const Game& game) {
+void Window::draw(const Game& game, const Gui& gui) {
     renderer.draw_game(game);
+    renderer.draw_gui(gui);
 }
 
 void Window::set_fps(u64 fps) {
@@ -176,6 +182,28 @@ void Renderer::draw_game(const Game& game) {
     // draw menu
     else {
 
+    }
+}
+
+void Renderer::draw_gui(const Gui& gui) {
+    for (int m_i = 0; m_i < gui.menues.size(); ++m_i) {
+        for (int b_i = 0; b_i < gui.menues[m_i].buttons.size(); ++b_i) {
+            const Button& button = gui.menues[m_i].buttons[b_i];
+            Color col = WHITE;
+            float thicc = button.down ? 3.f : 1.f;
+            if (button.hovered) col = {.r = 0xDC, .g = 0xDC, .b = 0xDC, .a = 0xFF};
+            DrawRectangleRec(button.boundary, col);
+            if (button.texture) {
+                //DrawTextureRec(*button.texture, button.boundary, {0.f, 0.f}, WHITE);
+            }
+            if (button.text) {
+                // TODO:: fontsize???
+                float font_factor = 1.f / strlen(button.text);
+                Vector2 font_size = MeasureTextEx(GetFontDefault(), button.text, button.boundary.height * font_factor, 1.f);
+                DrawText(button.text, button.boundary.x, button.boundary.y + font_size.y / 2.f, font_size.y, BLACK);
+            }
+            DrawRectangleLinesEx(button.boundary, thicc, BLACK);
+        }
     }
 }
 #endif

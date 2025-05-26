@@ -43,7 +43,7 @@ enum Enemy_Type {
 struct Enemy {
     bool active = true;
     float hp = 100.f;
-    float speed = 00.f;
+    float speed = 100.f;
     float damage = 1.f;
     Enemy_Type type = CHICKEN;
     Rectangle boundary = {0.f, 0.f, 10.f, 10.f};
@@ -77,7 +77,7 @@ enum Projectile_Type {
 struct Projectile {
     bool active = true;
     float speed = 500.f; 
-    float radius = 10.f;
+    float radius = 2.f;
     float damage = 2.f;
     u64 target_id;
     bool target_lost = false;
@@ -98,6 +98,7 @@ struct Tower {
     float range = 100.f;
     float reload_time = 0.2f;
     float time_since_shot = reload_time;
+    float turn_speed = 10.f;
     Tower_Type type = TOWER_SEEK;
 
     Vector2 position = {0.f, 0.f};
@@ -113,6 +114,8 @@ struct Tower {
     void shoot();
 
     Vector2 get_center() const;
+
+    void turn_to_target(Vector2 target_dir);
 
 };
 
@@ -420,8 +423,21 @@ void Tower::update(const std::vector<Enemy>& enemies, const std::vector<EnemyRec
             return;
         }
         
-        direction = Vector2Normalize(line_to_target);
+        //direction = Vector2Normalize(line_to_target);
+        turn_to_target(line_to_target);
     }
+}
+
+void Tower::turn_to_target(Vector2 target_dir) {
+    float angle_dif = Vector2Angle(target_dir, direction);
+    if (angle_dif <= turn_speed) {
+        direction = target_dir;
+    }
+    else {
+        float angle = angle_dif < 0 ? -turn_speed : turn_speed;
+        Vector2Rotate(direction, angle);
+    }
+    
 }
 
 bool Tower::shot_ready() {

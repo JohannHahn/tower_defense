@@ -98,11 +98,11 @@ void Renderer::draw_map(const Map& map) {
         Vector2 road_next = Vector2Add(next, dir_90); 
 
         // draw road segment on one side
-        DrawLineV(road_current, road_next, GREEN);
+        DrawLineV(road_current, road_next, BROWN);
         // the other side
         road_current = Vector2Add(current, Vector2Scale(dir_90, -1.f)); 
         road_next = Vector2Add(next, Vector2Scale(dir_90, -1.f)); 
-        DrawLineV(road_current, road_next, GREEN);
+        DrawLineV(road_current, road_next, BROWN);
     }
 }
 void Renderer::draw_level(const Level& level) {
@@ -155,7 +155,7 @@ void Renderer::draw_enemy(const Enemy& enemy, const Map& map) {
         Vector2 pos = enemy.get_center();
         Vector2 direction = enemy.direction;
         direction = Vector2Scale(direction, 1.f / GetFrameTime());
-        DrawLineV(pos, Vector2Add(pos, direction), GREEN);
+        //DrawLineV(pos, Vector2Add(pos, direction), GREEN);
     }
     // draw "model"
 }
@@ -165,7 +165,7 @@ void Renderer::draw_tower(const Tower& tower, const std::vector<EnemyRecord>& en
         Color color = tower.target_lock ? GREEN : GRAY;
         Rectangle tower_rec = {tower.position.x, tower.position.y, tower.size.x, tower.size.y};
         DrawRectangleRec(tower_rec, color);
-        //DrawLineV(tower.get_center(), Vector2Add(tower.get_center(), Vector2Scale(tower.direction, 40.f)), GREEN);
+        DrawLineV(tower.get_center(), Vector2Add(tower.get_center(), Vector2Scale(tower.direction, 2.f)), GREEN);
         DrawCircleLinesV(tower.get_center(), tower.range, RED);
         if (tower.target_lock) {
             DrawLineV(tower.get_center(), enemy_records[tower.target_id].center, RED);

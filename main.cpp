@@ -54,6 +54,8 @@ Level make_test_level(const Window& window, Image img) {
     //level.spawners.push_back(sp);
 
     Tower tower; tower.position = {window.width / 2.f, window.height / 1.7f};
+    tower.type = TOWER_BASIC;
+    tower.turn_speed = .1f;
     level.add_tower(tower);
     tower.position = {window.width - 100.f, window.height / 1.1f};
     level.add_tower(tower);
@@ -67,12 +69,12 @@ Level make_test_level(const Window& window, Image img) {
     Round round;
     round.length = 100; 
     SpawnEvent event;
-    event.position = {0, 0};
+    event.position = {window.width / 2.f, window.height / 2.f};
     event.start = 0.f;
-    event.delay = 1.f;
+    event.delay = .5f;
     
     for (int i = 0; i < ENEMY_TYPE_MAX; i++) {
-        event.enemies[i] = 1;
+        event.enemies[i] = 100;
     }
     round.events.push_back(event);
     //event.start = 2;

@@ -87,14 +87,14 @@ Level make_test_level(const Window& window, Image img) {
 
 Game game;
 void button_callback() {
-    game.levels[0].map.save_to_file();
+    game.levels[0].save_to_file("level.blob");
 };
 
 int main() {
     Log_Level global_log_lvl = FULL;
 
     constexpr const u64 initial_width = 1200;
-    constexpr const u64 initial_height = 1200;
+    constexpr const u64 initial_height = 900;
 
     const char* img_path = "perlin_noise.bmp";
     Image img = LoadImage(img_path);

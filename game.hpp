@@ -13,12 +13,28 @@ typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint8_t  byte;
 
+// TODO:: REREFACTOR FUNCTIONS
 template <class T>
 static void remove_inactive_elements(std::vector<T>& array);
 
 static Vector2 get_rec_center(Rectangle rec);
 
 static Rectangle to_rec(const Vector2& v1, const Vector2& v2);
+
+// could go boom boom
+template<class T>
+void write_to_blob(byte* blob, T val, size_t& offset) {
+    size_t size = sizeof(T);
+    memcpy(blob + offset, &val, size);
+    offset += size;
+}
+
+template<class T>
+void read_from_blob(byte* blob, size_t& offset, T& out, int size = -1) {
+    if (size == -1) size = sizeof(T);
+    memcpy(&out, blob + offset, size); 
+}
+
 
 struct Level;
 
@@ -45,38 +61,43 @@ struct Map {
         return num_bytes; 
     }
 
-    void save_to_file() {
-        size_t num_bytes = get_byte_size();
-        byte* data = (byte*)malloc(num_bytes);
-        size_t offset = 0;
-        memcpy(data, &width, sizeof(width));
-        offset += sizeof(width);
-        memcpy(data + offset, &height, sizeof(height));
-        offset += sizeof(height);
-        memcpy(data + offset, &road_width, sizeof(road_width));
-        offset += sizeof(road_width);
-        memcpy(data + offset, waypoints.data(), waypoints.size() * sizeof(Vector2));
-        offset += waypoints.size() * sizeof(Vector2);
-        memcpy(data + offset, occupied_areas.data(), occupied_areas.size() * sizeof(Rectangle));
-        offset += occupied_areas.size() * sizeof(Rectangle);
+    void save_to_blob(byte* blob, size_t& offset) {
+        size_t local_offset = offset;
+        write_to_blob(blob, width, offset);
+        write_to_blob(blob, height, offset);
+        write_to_blob(blob, road_width, offset);
+        write_to_blob(blob, waypoints.size(), offset);
+        for (Vector2 wp : waypoints) {
+            write_to_blob(blob, wp, offset);
+        }
+        write_to_blob(blob, occupied_areas.size(), offset);
+        for (Vector2 wp : waypoints) {
+            write_to_blob(blob, wp, offset);
+        }
 
-        assert(offset == num_bytes);
-        
-        SaveFileData("map.blob", data, num_bytes);
-        free(data);
+        local_offset = offset - local_offset;
+        std::printf("local offset = %llu ", local_offset);
+        std::printf("offset = %llu ", offset);
+        std::printf("byte_size = %llu ", get_byte_size());
+        assert(local_offset == get_byte_size());
     }
 
-    void load_from_file(const char* file_name) {
-        int num_bytes = 0;
-        byte* data = LoadFileData(file_name, &num_bytes);
-        size_t offset = 0;
-        memcpy(&width, data, sizeof(width));
-        offset += sizeof(width);
-        memcpy(&height, data + offset, sizeof(height));
-        offset += sizeof(height);
-        memcpy(&road_width, data + offset, sizeof(road_width));
-        offset += sizeof(height);
+    void load_from_blob(byte* blob, size_t& offset) {
+        read_from_blob(blob, offset, width);
+        read_from_blob(blob, offset, height);
+        read_from_blob(blob, offset, road_width);
+
+        size_t wp_size = 0;
+        read_from_blob(blob, offset, wp_size);
+        waypoints.resize(wp_size);
+        read_from_blob(blob, offset, *waypoints.data(), wp_size);
+
+        size_t occ_size = 0;
+        read_from_blob(blob, offset, occ_size);
+        occupied_areas.resize(occ_size);
+        read_from_blob(blob, offset, *occupied_areas.data(), occ_size);
     }
+
 };
 
 enum Enemy_Type {
@@ -233,6 +254,24 @@ struct Level {
     void add_enemy(Enemy& enemy);
 
     std::string to_string(const char* prefix = "");
+
+    void save_to_file(const char* file_name) {
+        size_t total_size = map.get_byte_size();
+        byte* blob = new byte[total_size];
+        size_t offset = 0;
+
+        map.save_to_blob(blob, offset);
+
+        SaveFileData(file_name, blob, total_size);
+
+        delete[] blob;
+    }
+
+    void load_from_file(const char* file_name) {
+        int total_size = map.get_byte_size();
+        byte* blob = (byte*)LoadFileData(file_name, &total_size);
+        
+    }
 
 };
 struct Game {
@@ -555,14 +594,9 @@ void Enemy::update(const std::vector<Vector2>& waypoints) {
 
     assert(next_waypoint < waypoints.size());
 
-    std::cout << "next wp = " << next_waypoint << "\n";
-    std::cout << "waypoints.size = " << waypoints.size() << "\n";
     Vector2 wp = waypoints[next_waypoint]; 
     Vector2 pos = get_center();
     float distance = Vector2Length(Vector2Subtract(wp, pos));
-
-    std::cout << "position = " << pos.x << ", " << pos.y << "\n"; 
-    std::cout << "distance = " << distance << "\n";
 
     direction = Vector2Scale(Vector2Normalize(Vector2Subtract(wp, get_center())), speed * GetFrameTime());
     pos = Vector2Add(pos, direction);

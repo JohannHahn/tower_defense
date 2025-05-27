@@ -85,8 +85,9 @@ Level make_test_level(const Window& window, Image img) {
     return level;
 }
 
-void button_callback(int a, ...) {
-    std::cout << "a = " << a << "\n";
+Game game;
+void button_callback() {
+    game.levels[0].map.save_to_file();
 };
 
 int main() {
@@ -103,7 +104,6 @@ int main() {
     window.open();
     SetRandomSeed(time(NULL));
 
-    Game game;
     game.levels.push_back(make_test_level(window, img));
     game.start();
 
@@ -115,6 +115,7 @@ int main() {
     Button button; 
     button.boundary = br;
     button.text = "helloooooooooooooooooooooooooooooo";
+    button.on_click = button_callback;
     menu.buttons.push_back(button);
     gui.menues.push_back(menu);
 

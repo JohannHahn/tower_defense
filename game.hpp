@@ -1,4 +1,6 @@
 #pragma once
+#include <cstdlib>
+#include <cstring>
 #include <inttypes.h>
 #include <iostream>
 #include "raylib.h"
@@ -9,6 +11,7 @@
 
 typedef uint64_t u64;
 typedef uint32_t u32;
+typedef uint8_t  byte;
 
 template <class T>
 static void remove_inactive_elements(std::vector<T>& array);
@@ -34,6 +37,46 @@ struct Map {
     void add_rec(Rectangle rec);
 
     bool check_free(Rectangle rec) const ;
+
+    size_t get_byte_size() {
+        size_t num_bytes = sizeof(width) + sizeof(height) + sizeof(road_width);
+        for (Vector2 vec : waypoints) num_bytes += sizeof(Vector2);
+        for (Rectangle rec : occupied_areas) num_bytes += sizeof(Rectangle);
+        return num_bytes; 
+    }
+
+    void save_to_file() {
+        size_t num_bytes = get_byte_size();
+        byte* data = (byte*)malloc(num_bytes);
+        size_t offset = 0;
+        memcpy(data, &width, sizeof(width));
+        offset += sizeof(width);
+        memcpy(data + offset, &height, sizeof(height));
+        offset += sizeof(height);
+        memcpy(data + offset, &road_width, sizeof(road_width));
+        offset += sizeof(road_width);
+        memcpy(data + offset, waypoints.data(), waypoints.size() * sizeof(Vector2));
+        offset += waypoints.size() * sizeof(Vector2);
+        memcpy(data + offset, occupied_areas.data(), occupied_areas.size() * sizeof(Rectangle));
+        offset += occupied_areas.size() * sizeof(Rectangle);
+
+        assert(offset == num_bytes);
+        
+        SaveFileData("map.blob", data, num_bytes);
+        free(data);
+    }
+
+    void load_from_file(const char* file_name) {
+        int num_bytes = 0;
+        byte* data = LoadFileData(file_name, &num_bytes);
+        size_t offset = 0;
+        memcpy(&width, data, sizeof(width));
+        offset += sizeof(width);
+        memcpy(&height, data + offset, sizeof(height));
+        offset += sizeof(height);
+        memcpy(&road_width, data + offset, sizeof(road_width));
+        offset += sizeof(height);
+    }
 };
 
 enum Enemy_Type {

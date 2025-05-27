@@ -33,8 +33,24 @@ template<class T>
 void read_from_blob(byte* blob, size_t& offset, T& out, int size = -1) {
     if (size == -1) size = sizeof(T);
     memcpy(&out, blob + offset, size); 
+    offset += size;
 }
 
+template<class T>
+void array_to_blob(byte* blob, size_t& offset, const std::vector<T>& array) {
+    write_to_blob(blob, array.size(), offset);
+    for (T t : array) {
+        write_to_blob(blob, t, offset);
+    }
+}
+
+template<class T>
+void array_from_blob(byte* blob, size_t& offset, std::vector<T>& array) {
+    size_t size = 0; 
+    read_from_blob(blob, offset, size);
+    array.resize(size);
+    read_from_blob(blob, offset, array.data(), size);
+}
 
 struct Level;
 
@@ -56,6 +72,10 @@ struct Map {
 
     size_t get_byte_size() {
         size_t num_bytes = sizeof(width) + sizeof(height) + sizeof(road_width);
+        //waypoints.size
+        num_bytes += sizeof(size_t);
+        //occupied_areas.size
+        num_bytes += sizeof(size_t);
         for (Vector2 vec : waypoints) num_bytes += sizeof(Vector2);
         for (Rectangle rec : occupied_areas) num_bytes += sizeof(Rectangle);
         return num_bytes; 
@@ -66,14 +86,8 @@ struct Map {
         write_to_blob(blob, width, offset);
         write_to_blob(blob, height, offset);
         write_to_blob(blob, road_width, offset);
-        write_to_blob(blob, waypoints.size(), offset);
-        for (Vector2 wp : waypoints) {
-            write_to_blob(blob, wp, offset);
-        }
-        write_to_blob(blob, occupied_areas.size(), offset);
-        for (Vector2 wp : waypoints) {
-            write_to_blob(blob, wp, offset);
-        }
+        array_to_blob(blob, offset, waypoints);
+        array_to_blob(blob, offset, occupied_areas);
 
         local_offset = offset - local_offset;
         std::printf("local offset = %llu ", local_offset);
@@ -256,11 +270,23 @@ struct Level {
     std::string to_string(const char* prefix = "");
 
     void save_to_file(const char* file_name) {
-        size_t total_size = map.get_byte_size();
+        size_t total_size = map.get_byte_size()+ 99999;
         byte* blob = new byte[total_size];
         size_t offset = 0;
 
         map.save_to_blob(blob, offset);
+
+        array_to_blob(blob, offset, enemies);
+        array_to_blob(blob, offset, enemy_records);
+        array_to_blob(blob, offset, towers);
+        array_to_blob(blob, offset, spawners);
+        array_to_blob(blob, offset, bullets);
+        array_to_blob(blob, offset, rounds);
+        write_to_blob(blob, name, offset);
+        write_to_blob(blob, time, offset);
+        write_to_blob(blob, object_id_counter, offset);
+
+        assert(offset < total_size);
 
         SaveFileData(file_name, blob, total_size);
 
@@ -270,6 +296,18 @@ struct Level {
     void load_from_file(const char* file_name) {
         int total_size = map.get_byte_size();
         byte* blob = (byte*)LoadFileData(file_name, &total_size);
+        size_t offset = 0;
+        map.load_from_blob(blob, offset);
+
+        array_from_blob(blob, offset, enemies);
+        array_from_blob(blob, offset, enemy_records);
+        array_from_blob(blob, offset, towers);
+        array_from_blob(blob, offset, spawners);
+        array_from_blob(blob, offset, bullets);
+        array_from_blob(blob, offset, rounds);
+        read_from_blob(blob, offset, name);
+        read_from_blob(blob, offset, time);
+        read_from_blob(blob, offset, object_id_counter);
         
     }
 

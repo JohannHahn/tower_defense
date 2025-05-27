@@ -2,9 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <time.h>
-#define GAME_IMPLEMENTATION
 #include "game.hpp"
-#define DRAW_IMPLEMENTATION
 #include "draw.hpp"
 #include "gui.hpp"
 

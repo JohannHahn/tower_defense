@@ -81,7 +81,7 @@ Level make_test_level(const Window& window, Image img) {
     //round.events.push_back(event);
     level.rounds.push_back(round);
 
-    //level.load_from_file("level.blob");
+    level.load_from_file("level.blob");
     return level;
 }
 

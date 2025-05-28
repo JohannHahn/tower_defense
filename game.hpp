@@ -58,8 +58,27 @@ template<class T>
 void array_from_blob(byte* blob, size_t& offset, std::vector<T>& array) {
     size_t size = 0; 
     read_from_blob(blob, offset, size);
+    printf("size = %llu\n", size);
     array.resize(size);
-    read_from_blob(blob, offset, &array[0], size);
+    read_from_blob(blob, offset, &array[0], size * sizeof(T));
+}
+
+template<class T>
+void struct_array_to_blob(byte* blob, size_t& offset, const std::vector<T>& array) {
+    write_to_blob(blob, offset, array.size());
+    for(T t : array) {
+        t.save_to_blob(blob, offset);
+    }
+}
+
+template<class T>
+void struct_array_from_blob(byte* blob, size_t& offset, std::vector<T>& array) {
+    size_t size = 0;
+    read_from_blob(blob, offset, size);
+    array.resize(size);
+    for (T& t : array) {
+        t.load_from_blob(blob, offset);
+    }
 }
 
 struct Level;
@@ -101,9 +120,6 @@ struct Map {
         array_to_blob(blob, offset, occupied_areas);
 
         local_offset = offset - local_offset;
-        std::printf("local offset = %llu \n", local_offset);
-        std::printf("offset = %llu \n", offset);
-        std::printf("byte_size = %llu \n", get_byte_size());
         assert(local_offset == get_byte_size());
     }
 
@@ -111,9 +127,12 @@ struct Map {
         read_from_blob(blob, offset, width);
         read_from_blob(blob, offset, height);
         read_from_blob(blob, offset, road_width);
+        printf("map: after primitives\n");
 
         array_from_blob(blob, offset, waypoints);
+        printf("map: after waypoints\n");
         array_from_blob(blob, offset, occupied_areas);
+        printf("map: after occupied\n");
     }
 
 };
@@ -146,7 +165,7 @@ struct Enemy {
 
     void get_hit(float dmg);
 
-    size_t get_byte_size() {
+    size_t get_byte_size() const {
         size_t size = 0;
         size += sizeof(active);
         size += sizeof(hp);
@@ -162,6 +181,8 @@ struct Enemy {
     }
 
     void save_to_blob(byte* blob, size_t& offset) const {
+        size_t local_offset = offset;
+
         write_to_blob(blob, offset, active);
         write_to_blob(blob, offset, hp);
         write_to_blob(blob, offset, speed);
@@ -172,6 +193,9 @@ struct Enemy {
         write_to_blob(blob, offset, next_waypoint);
         write_to_blob(blob, offset, id);
         write_to_blob(blob, offset, hit);
+
+        local_offset = offset - local_offset;
+        assert(local_offset == get_byte_size());
     }
 
     void load_from_blob(byte* blob, size_t& offset) {
@@ -192,9 +216,18 @@ struct EnemyRecord {
     bool active;
     Vector2 center;
 
+    size_t get_byte_size() const {
+        return sizeof(active) + sizeof(center);
+    }
+
     void save_to_blob(byte* blob, size_t& offset) const {
+        size_t local_offset = offset;
+
         write_to_blob(blob, offset, active);
         write_to_blob(blob, offset, center);
+
+        local_offset = offset - local_offset;
+        assert(local_offset == get_byte_size());
     }
 
     void load_from_blob(byte* blob, size_t& offset) {
@@ -219,8 +252,23 @@ struct Projectile {
     Projectile_Type type = STRAIGHT;
 
     void update(std::vector<Enemy>& enemies, std::vector<EnemyRecord>& enemy_records, Rectangle game_boundary);
+    
+    size_t get_byte_size() const {
+        size_t size = sizeof(active);
+        size += sizeof(speed);
+        size += sizeof(radius);
+        size += sizeof(damage);
+        size += sizeof(target_id);
+        size += sizeof(target_lost);
+        size += sizeof(position);
+        size += sizeof(direction);
+        size += sizeof(type);
+        return size;
+    }
 
     void save_to_blob(byte* blob, size_t& offset) const {
+        size_t local_offset = offset;
+
         write_to_blob(blob, offset, active);
         write_to_blob(blob, offset, speed);
         write_to_blob(blob, offset, radius);
@@ -230,6 +278,9 @@ struct Projectile {
         write_to_blob(blob, offset, position);
         write_to_blob(blob, offset, direction);
         write_to_blob(blob, offset, type);
+
+        local_offset = offset - local_offset;
+        assert(local_offset == get_byte_size());
     }
 
     void load_from_blob(byte* blob, size_t& offset) {
@@ -275,7 +326,26 @@ struct Tower {
 
     void turn_to_target(Vector2 target_dir);
 
+    size_t get_byte_size() const {
+        size_t size = 0;
+        size += sizeof(hp);
+        size += sizeof(damage);
+        size += sizeof(range);
+        size += sizeof(reload_time);
+        size += sizeof(time_since_shot);
+        size += sizeof(turn_speed);
+        size += sizeof(type);
+        size += sizeof(position);
+        size += sizeof(this->size);
+        size += sizeof(direction);
+        size += sizeof(target_id);
+        size += sizeof(target_lock);
+        return size;
+    } 
+
     void save_to_blob(byte* blob, size_t& offset) const {
+        size_t local_offset = offset;        
+
         write_to_blob(blob, offset, hp);
         write_to_blob(blob, offset, damage);
         write_to_blob(blob, offset, range);
@@ -288,6 +358,9 @@ struct Tower {
         write_to_blob(blob, offset, direction);
         write_to_blob(blob, offset, target_id);
         write_to_blob(blob, offset, target_lock);
+
+        local_offset = offset - local_offset;
+        assert(local_offset == get_byte_size());
     }
 
     void load_from_blob(byte* blob, size_t& offset) {
@@ -320,7 +393,21 @@ struct EnemySpawner {
     void spawn(Level& level);
     void update(Level& level);
 
+    size_t get_byte_size() const {
+        size_t size = 0;
+        size += sizeof(active);
+        size += sizeof(type);
+        size += sizeof(position);
+        size += sizeof(delay);
+        size += sizeof(time_since_spawn);
+        size += sizeof(max);
+        size += sizeof(spawned);
+        return size;
+    }
+
     void save_to_blob(byte* blob, size_t& offset) const {
+        size_t local_offset = offset;
+
         write_to_blob(blob, offset, active);
         write_to_blob(blob, offset, type);
         write_to_blob(blob, offset, position);
@@ -328,9 +415,12 @@ struct EnemySpawner {
         write_to_blob(blob, offset, time_since_spawn);
         write_to_blob(blob, offset, max);
         write_to_blob(blob, offset, spawned);
+
+        local_offset = offset - local_offset;
+        assert(local_offset == get_byte_size());
     }
 
-    void load_fromblob(byte* blob, size_t& offset) {
+    void load_from_blob(byte* blob, size_t& offset) {
         read_from_blob(blob, offset, active);
         read_from_blob(blob, offset, type);
         read_from_blob(blob, offset, position);
@@ -350,11 +440,25 @@ struct SpawnEvent {
 
     void spawn(std::vector<Enemy>& enemies, std::vector<EnemySpawner>& spawners);
 
+    size_t get_byte_size() const {
+        size_t size = 0;
+        size += sizeof(start);
+        size += sizeof(delay);
+        size += ENEMY_TYPE_MAX * sizeof(u64);
+        size += sizeof(position);
+        return size;
+    } 
+
     void save_to_blob(byte* blob, size_t& offset) const {
+        size_t local_offset = offset;
+
         write_to_blob(blob, offset, start);
         write_to_blob(blob, offset, delay);
         write_to_blob(blob, offset, &enemies[0], sizeof(u64) * ENEMY_TYPE_MAX);
         write_to_blob(blob, offset, position);
+
+        local_offset = offset - local_offset;
+        assert(local_offset == get_byte_size());
     }
 
     void load_from_blob(byte* blob, size_t& offset) {
@@ -374,23 +478,33 @@ struct Round {
 
     void update(std::vector<Enemy>& enemies, std::vector<EnemySpawner>& spawners);
 
-    void save_to_blob(byte* blob, size_t& offset) const {
-        write_to_blob(blob, offset, events.size());
-        for (const SpawnEvent& ev : events) {
-            ev.save_to_blob(blob, offset);
+    size_t get_byte_size() const {
+        size_t size = 0;
+
+        size += sizeof(size_t);
+        for (const SpawnEvent e : events) {
+            size += e.get_byte_size(); 
         }
+        size += sizeof(length);
+        size += sizeof(time);
+        size += sizeof(next_event);
+        return size;
+    } 
+
+    void save_to_blob(byte* blob, size_t& offset) const {
+        size_t local_offset = offset;
+
+        struct_array_to_blob(blob, offset, events);
         write_to_blob(blob, offset, length);
         write_to_blob(blob, offset, time);
         write_to_blob(blob, offset, next_event);
+
+        local_offset = offset - local_offset;
+        assert(local_offset == get_byte_size());
     }
 
     void load_from_blob(byte* blob, size_t& offset) {
-        size_t ev_size = 0;
-        read_from_blob(blob, offset, ev_size);
-        events.resize(ev_size);
-        for (SpawnEvent& ev : events) {
-            ev.load_from_blob(blob, offset);
-        }
+        struct_array_from_blob(blob, offset, events);
         read_from_blob(blob, offset, length);
         read_from_blob(blob, offset, time);
         read_from_blob(blob, offset, next_event);
@@ -399,12 +513,14 @@ struct Round {
 
 struct Level {
     Map map;
+
     std::vector<Enemy> enemies;
     std::vector<EnemyRecord> enemy_records;
     std::vector<Tower> towers;
     std::vector<EnemySpawner> spawners;
     std::vector<Projectile> bullets;
     std::vector<Round> rounds;
+
     const char* name; 
     float time = 0.f;
     int active_round = -1;
@@ -434,25 +550,59 @@ struct Level {
 
     std::string to_string(const char* prefix = "");
 
+    size_t get_byte_size() const {
+        size_t size = 0;
+        size += map.get_byte_size();
+
+        size += sizeof(size_t);
+        for (const Enemy& e : enemies) size += e.get_byte_size();
+
+        size += sizeof(size_t);
+        for (const EnemyRecord& er : enemy_records) size += er.get_byte_size();
+
+        size += sizeof(size_t);
+        for (const Tower& t : towers) size += t.get_byte_size();
+
+        size += sizeof(size_t);
+        for (const EnemySpawner& es : spawners) size += es.get_byte_size();
+
+        size += sizeof(size_t);
+        for (const Projectile& p : bullets) size += p.get_byte_size();
+
+        size += sizeof(size_t);
+        for (const Round& r : rounds) size += r.get_byte_size();
+
+        size += sizeof(size_t);
+        size += strlen(name);
+
+        size += sizeof(time);
+        size += sizeof(active_round);
+        size += sizeof(object_id_counter);
+
+        return size;
+    }
+
     void save_to_file(const char* file_name) const {
-        size_t total_size = map.get_byte_size()+ 99999;
+        size_t total_size = get_byte_size();
         byte* blob = new byte[total_size];
         size_t offset = 0;
 
         map.save_to_blob(blob, offset);
 
-        array_to_blob(blob, offset, enemies);
-        array_to_blob(blob, offset, enemy_records);
-        array_to_blob(blob, offset, towers);
-        array_to_blob(blob, offset, spawners);
-        array_to_blob(blob, offset, bullets);
-        array_to_blob(blob, offset, rounds);
+        struct_array_to_blob(blob, offset, enemies);
+        struct_array_to_blob(blob, offset, enemy_records);
+        struct_array_to_blob(blob, offset, towers);
+        struct_array_to_blob(blob, offset, spawners);
+        struct_array_to_blob(blob, offset, bullets);
+        struct_array_to_blob(blob, offset, rounds);
 
-        write_to_blob(blob, offset, name);
+        write_to_blob(blob, offset, strlen(name));
+        write_to_blob(blob, offset, name, strlen(name));
         write_to_blob(blob, offset, time);
+        write_to_blob(blob, offset, active_round);
         write_to_blob(blob, offset, object_id_counter);
 
-        assert(offset < total_size);
+        assert(offset == total_size);
 
         SaveFileData(file_name, blob, total_size);
 
@@ -460,23 +610,26 @@ struct Level {
     }
 
     void load_from_file(const char* file_name) {
-        int total_size = map.get_byte_size() + 99999 ;
+        int total_size = 0;
         byte* blob = (byte*)LoadFileData(file_name, &total_size);
         size_t offset = 0;
         map.load_from_blob(blob, offset);
 
-        array_from_blob(blob, offset, enemies);
-        printf("hi");
-        array_from_blob(blob, offset, enemy_records);
-        array_from_blob(blob, offset, towers);
-        array_from_blob(blob, offset, spawners);
-        array_from_blob(blob, offset, bullets);
-        array_from_blob(blob, offset, rounds);
-        read_from_blob(blob, offset, name);
+        struct_array_from_blob(blob, offset, enemies);
+        struct_array_from_blob(blob, offset, enemy_records);
+        struct_array_from_blob(blob, offset, towers);
+        struct_array_from_blob(blob, offset, spawners);
+        struct_array_from_blob(blob, offset, bullets);
+        struct_array_from_blob(blob, offset, rounds);
+
+        size_t str_size = 0;
+        read_from_blob(blob, offset, str_size);
+        read_from_blob(blob, offset, &name[0], str_size);
         read_from_blob(blob, offset, time);
+        write_to_blob(blob, offset, active_round);
         read_from_blob(blob, offset, object_id_counter);
-        printf("hi");
-        
+
+        UnloadFileData(blob);
     }
 
 };

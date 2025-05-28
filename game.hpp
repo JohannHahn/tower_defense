@@ -99,7 +99,6 @@ struct Map {
 
         array_to_blob(blob, offset, waypoints);
         array_to_blob(blob, offset, occupied_areas);
-        //pls coommit this
 
         local_offset = offset - local_offset;
         std::printf("local offset = %llu ", local_offset);

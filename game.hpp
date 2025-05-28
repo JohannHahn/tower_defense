@@ -48,6 +48,14 @@ void read_from_blob(byte* blob, size_t& offset, T* out, size_t size) {
     offset += size;
 }
 
+
+void string_to_blob(byte* blob, size_t& offset, const std::string& string) {
+    printf("str size = %llu, str = %s\n", string.size(), string.c_str());
+    write_to_blob(blob, offset, string.size());
+    write_to_blob(blob, offset, &string[0], string.size());
+} 
+
+
 template<class T>
 void array_to_blob(byte* blob, size_t& offset, const std::vector<T>& array) {
     write_to_blob(blob, offset, array.size());
@@ -58,7 +66,6 @@ template<class T>
 void array_from_blob(byte* blob, size_t& offset, std::vector<T>& array) {
     size_t size = 0; 
     read_from_blob(blob, offset, size);
-    printf("size = %llu\n", size);
     array.resize(size);
     read_from_blob(blob, offset, &array[0], size * sizeof(T));
 }
@@ -79,6 +86,14 @@ void struct_array_from_blob(byte* blob, size_t& offset, std::vector<T>& array) {
     for (T& t : array) {
         t.load_from_blob(blob, offset);
     }
+}
+
+void string_from_blob(byte* blob, size_t& offset, std::string& out) {
+    size_t size;
+    read_from_blob(blob, offset, size);
+    printf("size = %llu\n", size);
+    out.resize(size);
+    read_from_blob(blob, offset, &out[0], size);
 }
 
 struct Level;
@@ -127,12 +142,9 @@ struct Map {
         read_from_blob(blob, offset, width);
         read_from_blob(blob, offset, height);
         read_from_blob(blob, offset, road_width);
-        printf("map: after primitives\n");
 
         array_from_blob(blob, offset, waypoints);
-        printf("map: after waypoints\n");
         array_from_blob(blob, offset, occupied_areas);
-        printf("map: after occupied\n");
     }
 
 };
@@ -521,7 +533,7 @@ struct Level {
     std::vector<Projectile> bullets;
     std::vector<Round> rounds;
 
-    const char* name; 
+    std::string name; 
     float time = 0.f;
     int active_round = -1;
     u64 object_id_counter = 0;
@@ -573,7 +585,7 @@ struct Level {
         for (const Round& r : rounds) size += r.get_byte_size();
 
         size += sizeof(size_t);
-        size += strlen(name);
+        size += name.size();
 
         size += sizeof(time);
         size += sizeof(active_round);
@@ -596,8 +608,7 @@ struct Level {
         struct_array_to_blob(blob, offset, bullets);
         struct_array_to_blob(blob, offset, rounds);
 
-        write_to_blob(blob, offset, strlen(name));
-        write_to_blob(blob, offset, name, strlen(name));
+        string_to_blob(blob, offset, name);
         write_to_blob(blob, offset, time);
         write_to_blob(blob, offset, active_round);
         write_to_blob(blob, offset, object_id_counter);
@@ -622,9 +633,7 @@ struct Level {
         struct_array_from_blob(blob, offset, bullets);
         struct_array_from_blob(blob, offset, rounds);
 
-        size_t str_size = 0;
-        read_from_blob(blob, offset, str_size);
-        read_from_blob(blob, offset, &name[0], str_size);
+        string_from_blob(blob, offset, name);
         read_from_blob(blob, offset, time);
         write_to_blob(blob, offset, active_round);
         read_from_blob(blob, offset, object_id_counter);

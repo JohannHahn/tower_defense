@@ -90,10 +90,6 @@ void button_callback() {
     game.levels[0].save_to_file("level.blob");
 };
 
-void test_save_load() {
-    const char* text = "hello, world!";
-}
-
 int main() {
     Log_Level global_log_lvl = FULL;
 

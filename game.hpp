@@ -50,7 +50,6 @@ void read_from_blob(byte* blob, size_t& offset, T* out, size_t size) {
 
 
 void string_to_blob(byte* blob, size_t& offset, const std::string& string) {
-    printf("str size = %llu, str = %s\n", string.size(), string.c_str());
     write_to_blob(blob, offset, string.size());
     write_to_blob(blob, offset, &string[0], string.size());
 } 
@@ -91,7 +90,6 @@ void struct_array_from_blob(byte* blob, size_t& offset, std::vector<T>& array) {
 void string_from_blob(byte* blob, size_t& offset, std::string& out) {
     size_t size;
     read_from_blob(blob, offset, size);
-    printf("size = %llu\n", size);
     out.resize(size);
     read_from_blob(blob, offset, &out[0], size);
 }
@@ -648,7 +646,6 @@ struct Game {
     Tower* selected_building = nullptr;
     bool paused = true;
 
-
     Game();
 
     Game(const std::vector<Level>& levels);
@@ -699,9 +696,13 @@ void Game::start() {
         std::cerr << "No levels found!\n";
         return;
     }
-    if (active_level < 0) active_level = 0;
-    assert(active_level < levels.size());
+    // already active
+    if (active_level >= 0) {
+        assert(active_level < levels.size());
+        return;
+    }
 
+    select_level(0);
     levels[active_level].start();
     paused = false;
 }

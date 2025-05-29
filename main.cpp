@@ -81,7 +81,6 @@ Level make_test_level(const Window& window, Image img) {
     //round.events.push_back(event);
     level.rounds.push_back(round);
 
-    level.load_from_file("level.blob");
     return level;
 }
 
@@ -105,8 +104,10 @@ int main() {
     window.open();
     SetRandomSeed(time(NULL));
 
-    game.levels.push_back(make_test_level(window, img));
+    Level test_lvl = make_test_level(window, img);
+    game.levels.push_back(test_lvl);
     game.start();
+    game.get_current_level().load_from_file("level.blob");
 
     Gui gui;
     Menu menu;

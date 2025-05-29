@@ -660,8 +660,7 @@ struct Game {
 
     std::string to_string();
 };
-#define GAME_IMPLEMENTATION
-#ifdef GAME_IMPLEMENTATION
+
 template <class T>
 static void remove_inactive_elements(std::vector<T>& array) {
     for (int i = 0; i < array.size(); ++i) {
@@ -1049,4 +1048,3 @@ void SpawnEvent::spawn(std::vector<Enemy>& enemies, std::vector<EnemySpawner>& s
     }
 }
 
-#endif

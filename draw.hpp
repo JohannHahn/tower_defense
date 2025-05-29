@@ -42,8 +42,6 @@ struct Window {
     Rectangle get_game_boundary() const;
 };
 
-#define DRAW_IMPLEMENTATION
-#ifdef DRAW_IMPLEMENTATION
 Window::Window(u64 width, u64 height): height(height), width(width){
     renderer.bounds = {0.f, 0.f, (float)width, (float)height};
 };
@@ -206,5 +204,4 @@ void Renderer::draw_gui(const Gui& gui) {
         }
     }
 }
-#endif
 

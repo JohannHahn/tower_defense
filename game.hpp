@@ -660,7 +660,6 @@ struct Game {
 
     std::string to_string();
 };
-
 template <class T>
 static void remove_inactive_elements(std::vector<T>& array) {
     for (int i = 0; i < array.size(); ++i) {

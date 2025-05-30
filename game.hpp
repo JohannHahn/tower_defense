@@ -13,6 +13,22 @@ typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint8_t  byte;
 
+// tools
+enum Log_Level {
+    NO_LOG, LOW, FULL, 
+};
+
+
+template <class T>
+void log_var(T var, const char* name = nullptr, Log_Level log_lvl = FULL) {
+    if (log_lvl == NO_LOG) return;
+
+    if (name && strlen(name) > 0) {
+        std::cout << name << ":\n";
+    }
+    std::cout << var << "\n";
+}
+
 // TODO:: REREFACTOR FUNCTIONS
 template <class T>
 static void remove_inactive_elements(std::vector<T>& array);

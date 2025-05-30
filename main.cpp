@@ -9,21 +9,6 @@
 typedef uint64_t u64;
 typedef uint32_t u32;
 
-// tools
-enum Log_Level {
-    NO_LOG, LOW, FULL, 
-};
-
-//template <class T>
-//void log_var(T var, const char* name = nullptr, Log_Level log_lvl = FULL) {
-//    if (global_log_lvl == NO_LOG) return;
-//    if (log_lvl < global_log_lvl) return;
-//
-//    if (name && strlen(name) > 0) {
-//        std::cout << name << ":\n";
-//    }
-//    std::cout << var << "\n";
-//}
 
 Level make_test_level(const Window& window, Image img) {
     Level level = Level("test", window.get_game_boundary());
@@ -118,7 +103,7 @@ int main() {
     Rectangle br = {window.width / 2.f - button_width / 2.f, window.height - button_height, button_width, button_height};
     Button button; 
     button.boundary = br;
-    button.text = "helloooooooooooooooooooooooooooooo";
+    button.text = "hello";
     button.on_click = button_callback;
     menu.buttons.push_back(button);
     gui.menues.push_back(menu);

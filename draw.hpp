@@ -18,6 +18,20 @@ struct Renderer {
     void draw_game(const Game& game);
     void draw_gui(const Gui& gui);
 
+    Vector2 center_text(Font font, const char* text, Rectangle boundary) {
+        size_t len = strlen(text);
+        float width = boundary.width / (float)len;
+        float height = boundary.height / (width / 3.f);
+
+        log_var(len, "length");
+        log_var(width, "width");
+        log_var(height, "height");
+        log_var(boundary.width, "boundary width");
+        std::cout << "---------\n";
+
+        return {width, height};
+    }
+
 };
 
 struct Window {
@@ -200,10 +214,12 @@ void Renderer::draw_gui(const Gui& gui) {
                 //DrawTextureRec(*button.texture, button.boundary, {0.f, 0.f}, WHITE);
             }
             if (button.text) {
-                // TODO:: fontsize???
-                float font_factor = 1.f / strlen(button.text);
-                Vector2 font_size = MeasureTextEx(GetFontDefault(), button.text, button.boundary.height * font_factor, 1.f);
-                DrawText(button.text, button.boundary.x, button.boundary.y + font_size.y / 2.f, font_size.y, BLACK);
+                Vector2 font_size = center_text(GetFontDefault(), button.text, button.boundary);
+                Vector2 position = {button.boundary.x, button.boundary.y};
+                
+                //DrawText(button.text, button.boundary.x, button.boundary.y, (font_size.y + font_size.x) / 2.f, BLACK);
+                DrawTextEx(GetFontDefault(), button.text, position, font_size.y, 1.f, BLACK);
+
             }
             DrawRectangleLinesEx(button.boundary, thicc, BLACK);
         }

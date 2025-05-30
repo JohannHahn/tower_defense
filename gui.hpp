@@ -7,6 +7,7 @@
 
 namespace GUI {
 
+
 struct Button {
     bool active = true;
     bool hovered = false;
@@ -25,7 +26,7 @@ struct Menu {
     std::vector<Button> buttons;
 };
 
-struct Controller {
+struct GuiController {
     void check_click(Button& button) {
         if (button.active == false ) return;
 
@@ -57,7 +58,7 @@ struct Controller {
 };
 
 struct Gui {
-    Controller controller;
+    GuiController controller;
     std::vector<Menu> menues;
 
     void update() {

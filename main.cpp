@@ -84,22 +84,24 @@ Level make_test_level(const Window& window, Image img) {
     return level;
 }
 
+constexpr const u64 initial_width = 1200;
+constexpr const u64 initial_height = 900;
 Game game;
+Window window(initial_width, initial_height);
+
 void button_callback() {
-    game.levels[0].save_to_file("level.blob");
+    if (game.edit_mode) game.stop_edit();
+    else game.start_edit();
 };
 
 
 int main() {
     Log_Level global_log_lvl = FULL;
 
-    constexpr const u64 initial_width = 1200;
-    constexpr const u64 initial_height = 900;
 
     const char* img_path = "perlin_noise.bmp";
     Image img = LoadImage(img_path);
     // Raylib window
-    Window window(initial_width, initial_height);
     window.set_fps(100);
     window.open();
     SetRandomSeed(time(NULL));
@@ -123,8 +125,10 @@ int main() {
 
     while (!WindowShouldClose()) {
         window.resize_if_needed();
+
+        GameController::update(game);
         if (!game.paused) {
-            game.update(window.get_game_boundary());
+            game.update();
         }
         gui.update();
 
@@ -132,23 +136,6 @@ int main() {
         ClearBackground(BLACK);
          
         window.draw(game, gui);
-
-        if (IsKeyPressed(KEY_SPACE)) {
-            game.paused = !game.paused;
-        }
-        Vector2 position = {(float)GetMouseX(), (float)GetMouseY()};
-        Tower tower;
-        tower.position = position;
-        Rectangle rec = {to_rec(tower.position, tower.size)};
-        if (game.get_current_level().map.check_free(rec)) {
-            DrawRectangleRec(rec, GREEN);
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                game.get_current_level().add_tower(tower);
-            }
-                
-        } else {
-            DrawRectangleRec(rec, RED);
-        }
 
         DrawFPS(0, initial_height / 2.f);
 

@@ -172,6 +172,11 @@ void Renderer::draw_tower(const Tower& tower, const std::vector<EnemyRecord>& en
 }
 
 void Renderer::draw_game(const Game& game) {
+    if (game.edit_mode) {
+        draw_level(game.edit_level);
+        return;
+    }
+
     assert(game.active_level < (int)game.levels.size());
 
     if (game.active_level >= 0) {

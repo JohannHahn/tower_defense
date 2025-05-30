@@ -640,26 +640,78 @@ struct Level {
     }
 
 };
+
+struct LevelEditor {
+    void place_tower(const Tower& tower, Level& level) {
+        level.add_tower(tower);
+    }    
+
+    void place_spawner(const EnemySpawner& spawner, Level& level) {
+        level.spawners.push_back(spawner);
+    }
+};
+
 struct Game {
     std::vector<Level> levels;
     int active_level = -1;
     Tower* selected_building = nullptr;
     bool paused = true;
+    bool edit_mode = false;
+    Level edit_level;
+    Rectangle boundary;
 
     Game();
 
-    Game(const std::vector<Level>& levels);
+    Game(Rectangle boundary, const std::vector<Level>& levels);
 
     void start();
 
     void select_level(u64 index);
 
-    void update(Rectangle game_boundary);
+    void update();
+
+    void start_edit() {
+        edit_level = Level("New Level", boundary);
+        edit_mode = true;
+    }
+
+    void stop_edit() {
+        edit_mode = false;
+        paused = true;
+    }
 
     Level& get_current_level();
 
     std::string to_string();
 };
+
+struct GameController {
+
+    static void update(Game& game) {
+        if (IsKeyPressed(KEY_SPACE)) {
+            game.paused = !game.paused;
+        }
+        Vector2 position = {(float)GetMouseX(), (float)GetMouseY()};
+        Tower tower;
+        tower.position = position;
+        Rectangle rec = {to_rec(tower.position, tower.size)};
+
+        Level* level = nullptr;
+        if (game.edit_mode) level = &game.edit_level;
+
+        else level = &game.get_current_level();
+        if (level->map.check_free(rec)) {
+            DrawRectangleRec(rec, GREEN);
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                level->add_tower(tower);
+            }
+                
+        } else {
+            DrawRectangleRec(rec, RED);
+        }
+    }
+};
+
 template <class T>
 static void remove_inactive_elements(std::vector<T>& array) {
     for (int i = 0; i < array.size(); ++i) {
@@ -678,11 +730,14 @@ static Vector2 get_rec_center(Rectangle rec) {
 static Rectangle to_rec(const Vector2& v1, const Vector2& v2) {
     return {v1.x, v1.y, v2.x, v2.y};
 }
-Game::Game() {
+// edit level gets reinitialized later
+Game::Game(): boundary({0, 0, 1200, 900}), edit_level(Level("New Level", boundary)) {
     levels.reserve(10);
 }
 
-Game::Game(const std::vector<Level>& levels) {
+Game::Game(Rectangle boundary, const std::vector<Level>& levels)
+    : edit_level(Level("New Level", boundary)) {
+
     this->levels.reserve(levels.size());
     for (int i = 0; i < levels.size(); ++i) {
         this->levels.push_back(levels[i]);
@@ -710,9 +765,12 @@ void Game::select_level(u64 index) {
     active_level = index;
 }
 
-void Game::update(Rectangle game_boundary) {
+void Game::update() {
+    if (edit_mode) {
+        return;
+    }
     assert(active_level < (int)levels.size());
-    levels[active_level].update(game_boundary);
+    levels[active_level].update(boundary);
 }
 
 Level& Game::get_current_level() {

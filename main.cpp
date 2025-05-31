@@ -74,10 +74,53 @@ constexpr const u64 initial_height = 900;
 Game game;
 Window window(initial_width, initial_height);
 
-void button_callback() {
-    if (game.edit_mode) game.stop_edit();
-    else game.start_edit();
+// TODO
+//
+struct Controller {
+    Game game;
+    Gui gui;
 };
+
+void start_callback() {
+    game.start();
+};
+
+void exit_callback() {
+    game.quit = true;
+};
+
+enum MenuIndex {
+    MENU_MAIN, MENU_MAX, 
+};
+
+Menu make_main_menu(const Window& window) {
+
+    Menu menu;
+    float width = window.width / 10.f;
+    float height = window.height / 3.f;
+    menu.boundary = {window.width - width, 0.f, width, height};
+
+    Button start_button; 
+    start_button.text = "Start";
+    start_button.on_click = start_callback;
+
+    Button exit_button;
+    exit_button.text = "Exit";
+    exit_button.on_click = exit_callback;
+
+    menu.buttons.push_back(start_button);
+    menu.buttons.push_back(exit_button);
+    menu.layout_vertical();
+    return menu;
+}
+
+Gui make_gui(const Window& window) {
+    Gui gui;
+    Menu main_menu = make_main_menu(window);
+    gui.menues.resize(MENU_MAX);
+    gui.menues[MENU_MAIN] = main_menu;
+    return gui;
+}
 
 
 int main() {
@@ -93,33 +136,22 @@ int main() {
 
     Level test_lvl = make_test_level(window, img);
     game.levels.push_back(test_lvl);
-    game.start();
-    game.get_current_level().load_from_file("level.blob");
+    //game.start();
+    //game.get_current_level().load_from_file("level.blob");
 
-    Gui gui;
-    Menu menu;
-    float button_width = 100.f;
-    float button_height = 50.f;
-    Rectangle br = {window.width / 2.f - button_width / 2.f, window.height - button_height, button_width, button_height};
-    Button button; 
-    button.boundary = br;
-    button.text = "hello";
-    button.on_click = button_callback;
-    menu.buttons.push_back(button);
-    TextBox tb;
-    tb.boundary = {button.boundary.x + 200, button.boundary.y, br.width * 2.f, br.height};
-    tb.text = "I am textbox";
-    menu.text_boxes.push_back(tb);
-    gui.menues.push_back(menu);
+    Gui gui = make_gui(window);
 
     while (!WindowShouldClose()) {
         window.resize_if_needed();
 
         GameController::update(game);
-        if (!game.paused) {
+
+        if (!(game.active_level == -1) || !game.paused) {
             game.update();
         }
         gui.update();
+
+        if (game.quit) break; 
 
         BeginDrawing();
         ClearBackground(BLACK);

@@ -14,6 +14,8 @@ struct Button {
     bool down = false;
 
     Rectangle boundary; 
+    Color bg_color = DARKGRAY;
+    Color text_color = RAYWHITE;
     Texture* texture = nullptr;
     const char* text = nullptr;
 
@@ -24,14 +26,27 @@ struct Button {
 struct TextBox {
     bool active = true;
     bool hovered = false;
+    Color bg_color = DARKGRAY;
+    Color text_color = RAYWHITE;
     Rectangle boundary;
     std::string text;
 };
 
 struct Menu {
     bool hovered = false;
+    Rectangle boundary;
     std::vector<Button> buttons;
     std::vector<TextBox> text_boxes;
+
+    void layout_vertical(float padding = 1.f) {
+        float offset = 0.f;
+        Rectangle first_slot = { boundary.x, boundary.y, boundary.width, boundary.height / buttons.size() };
+        for (Button& button : buttons) {
+            button.boundary = first_slot;
+            button.boundary.y += offset;
+            offset += button.boundary.height + padding;
+        } 
+    }
 };
 
 struct GuiController {

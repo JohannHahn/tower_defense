@@ -675,6 +675,7 @@ struct Game {
     bool edit_mode = false;
     Level edit_level;
     Rectangle boundary;
+    bool quit = false;
 
     Game();
 
@@ -704,6 +705,7 @@ struct Game {
 struct GameController {
 
     static void update(Game& game) {
+        if (game.active_level == -1) return;
         if (IsKeyPressed(KEY_SPACE)) {
             game.paused = !game.paused;
         }

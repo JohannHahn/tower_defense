@@ -36,33 +36,49 @@ struct Renderer {
     void draw_bullet(const Projectile& bullet);
     void draw_game(const Game& game);
 
-    void draw_gui(const Gui& gui) {
-        for (const Menu& menu : gui.menues) {
-            for (const Button& button : menu.buttons) {
-                draw_button(button);
-            }
-            for (const TextBox& textbox: menu.text_boxes) {
-                draw_textbox(textbox);
-            }
+    void draw_gui(const Game& game, const Gui& gui) {
+        // not started game yet
+        if (game.active_level == -1) {
+            // TODO:: enum ins commons
+            draw_menu(gui.menues[0]); 
+        }
+        else if (game.edit_mode) {
+            // draw edit menu
+        }
+        if (game.paused){
+            // draw pause menu
         }
 
     }
 
+    void draw_menu(const Menu& menu) {
+        for (const Button& b : menu.buttons) {
+            draw_button(b);
+        }
+    }
+
     void draw_button(const Button& button) {
-        Color col = WHITE;
-        float thicc = button.down ? 3.f : 1.f;
-        if (button.hovered) col = {.r = 0xDC, .g = 0xDC, .b = 0xDC, .a = 0xFF};
-        DrawRectangleRec(button.boundary, col);
+        Color col = button.bg_color;
+        float thicc = 1.f;
+        Rectangle inside_rec = button.boundary;
+        if (button.down) {
+            thicc = 3.f;
+            inside_rec = squish_rec(inside_rec, 3.f);
+        }
+        if (button.hovered) col = ColorBrightness(col, -0.5f);
+        DrawRectangleRec(inside_rec, col);
         if (button.texture) {
             //DrawTextureRec(*button.texture, button.boundary, {0.f, 0.f}, WHITE);
         }
         if (button.text) {
-            Rectangle rec = squish_rec(button.boundary, 10.f);
+            Rectangle rec = squish_rec(button.boundary, button.down ? 13.f : 10.f);
             Vector2 position;
             float font_size = center_text(GetFontDefault(), button.text, rec, &position);
             
             //DrawText(button.text, button.boundary.x, button.boundary.y, (font_size.y + font_size.x) / 2.f, BLACK);
-            DrawTextEx(GetFontDefault(), button.text, position, font_size, 1.f, BLACK);
+            Color text_color = button.text_color;
+            if (button.hovered) text_color = ColorBrightness(text_color, -0.5f);
+            DrawTextEx(GetFontDefault(), button.text, position, font_size, 2.f, button.text_color);
 
         }
         DrawRectangleLinesEx(button.boundary, thicc, BLACK);
@@ -121,7 +137,7 @@ void Window::resize_if_needed() {
 }
 void Window::draw(const Game& game, const Gui& gui) {
     renderer.draw_game(game);
-    renderer.draw_gui(gui);
+    renderer.draw_gui(game, gui);
 }
 
 void Window::set_fps(u64 fps) {

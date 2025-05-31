@@ -21,9 +21,17 @@ struct Button {
     void (*on_release)() = nullptr;
 };
 
+struct TextBox {
+    bool active = true;
+    bool hovered = false;
+    Rectangle boundary;
+    std::string text;
+};
+
 struct Menu {
     bool hovered = false;
     std::vector<Button> buttons;
+    std::vector<TextBox> text_boxes;
 };
 
 struct GuiController {
@@ -64,11 +72,24 @@ struct Gui {
     void update() {
         for (Menu& menu : menues) {
             for (Button& button : menu.buttons) {
-                controller.check_release(button);
-                controller.check_hover(button);
-                controller.check_click(button);
+                update_button(button);
             }
+
+            for (TextBox& text_box: menu.text_boxes) {
+                update_textbox(text_box);
+            }
+
         }
+    }
+
+    void update_button(Button& button) {
+        controller.check_release(button);
+        controller.check_hover(button);
+        controller.check_click(button);
+    }
+
+    void update_textbox(TextBox& textbox) {
+
     }
 };
 

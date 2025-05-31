@@ -106,6 +106,10 @@ int main() {
     button.text = "hello";
     button.on_click = button_callback;
     menu.buttons.push_back(button);
+    TextBox tb;
+    tb.boundary = {button.boundary.x + 200, button.boundary.y, br.width * 2.f, br.height};
+    tb.text = "I am textbox";
+    menu.text_boxes.push_back(tb);
     gui.menues.push_back(menu);
 
     while (!WindowShouldClose()) {

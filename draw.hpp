@@ -6,6 +6,28 @@
 
 using namespace GUI;
 
+float center_text(Font font, const char* text, Rectangle boundary) {
+    float font_size = boundary.height ;
+    Vector2 size = MeasureTextEx(font, text, font_size, 2.f);
+    log_var(font_size, "font_size");
+    log_var(size.x, "size.x");
+    log_var(boundary.width, "boundary width");
+    std::cout << "---------\n";
+
+    font_size *= (boundary.width / size.x);
+
+    return font_size;
+}
+
+Rectangle squish_rec(Rectangle rec, float dist) {
+    rec.x += dist;
+    rec.y += dist;
+    rec.width  -= 2.f*dist;
+    rec.height -= 2.f*dist;
+    return rec;
+}
+
+
 struct Renderer {
     Rectangle bounds;
     bool draw_debug = true;
@@ -18,19 +40,7 @@ struct Renderer {
     void draw_game(const Game& game);
     void draw_gui(const Gui& gui);
 
-    Vector2 center_text(Font font, const char* text, Rectangle boundary) {
-        size_t len = strlen(text);
-        float width = boundary.width / (float)len;
-        float height = boundary.height / (width / 3.f);
-
-        log_var(len, "length");
-        log_var(width, "width");
-        log_var(height, "height");
-        log_var(boundary.width, "boundary width");
-        std::cout << "---------\n";
-
-        return {width, height};
-    }
+    
 
 };
 
@@ -214,11 +224,12 @@ void Renderer::draw_gui(const Gui& gui) {
                 //DrawTextureRec(*button.texture, button.boundary, {0.f, 0.f}, WHITE);
             }
             if (button.text) {
-                Vector2 font_size = center_text(GetFontDefault(), button.text, button.boundary);
-                Vector2 position = {button.boundary.x, button.boundary.y};
+                Rectangle rec = squish_rec(button.boundary, 10.f);
+                float font_size = center_text(GetFontDefault(), button.text, rec);
+                Vector2 position = {rec.x, rec.y + (rec.height - font_size) / 2.f};
                 
                 //DrawText(button.text, button.boundary.x, button.boundary.y, (font_size.y + font_size.x) / 2.f, BLACK);
-                DrawTextEx(GetFontDefault(), button.text, position, font_size.y, 1.f, BLACK);
+                DrawTextEx(GetFontDefault(), button.text, position, font_size, 1.f, BLACK);
 
             }
             DrawRectangleLinesEx(button.boundary, thicc, BLACK);

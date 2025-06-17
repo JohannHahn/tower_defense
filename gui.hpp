@@ -7,66 +7,55 @@
 
 namespace GUI {
 
-
-struct Button {
+class MenuItem {
+public:
     bool active = true;
     bool hovered = false;
-    bool down = false;
-
-    Rectangle boundary; 
-    Texture* texture = nullptr;
-    const char* text = nullptr;
+    Rectangle boundary;
 
     void (*on_click)() = nullptr;
     void (*on_release)() = nullptr;
+    virtual void update();
+};
+
+class Button: public MenuItem {
+public:
+    bool down = false;
+
+    Texture* texture = nullptr;
+    const char* text = nullptr;
+
+    void update() {
+        if (active == false ) return;
+
+        hovered = CheckCollisionPointRec(GetMousePosition(), boundary);
+
+        if (!down && hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            down = true;
+            if (on_click)
+                on_click();
+        }
+
+        if (down && IsMouseButtonUp(MOUSE_BUTTON_LEFT)) {
+            down = false;
+            if (on_release) on_release();
+        }
+    }
+
 };
 
 struct Menu {
     bool hovered = false;
-    std::vector<Button> buttons;
-};
-
-struct GuiController {
-    void check_click(Button& button) {
-        if (button.active == false ) return;
-
-        if (!button.down 
-            && CheckCollisionPointRec(GetMousePosition(), button.boundary) 
-            && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-
-            button.down = true;
-            //button.hovered = false;
-            if (button.on_click)
-                button.on_click();
-        }
-    }
-
-    void check_release(Button& button) {
-        if (button.active == false) return;
-
-        if (button.down && IsMouseButtonUp(MOUSE_BUTTON_LEFT)) {
-            button.down = false;
-            if (button.on_release) button.on_release();
-        }
-    }
-
-    void check_hover(Button& button) {
-        if (button.active == false) return;
-
-        button.hovered = CheckCollisionPointRec(GetMousePosition(), button.boundary);
-    }
+    std::vector<MenuItem> items;
 };
 
 struct Gui {
-    GuiController controller;
     std::vector<Menu> menues;
 
     void update() {
         for (Menu& menu : menues) {
-            for (Button& button : menu.buttons) {
-                controller.check_release(button);
-                controller.check_hover(button);
-                controller.check_click(button);
+            for (MenuItem& item: menu.items) {
+                item.update();
             }
         }
     }

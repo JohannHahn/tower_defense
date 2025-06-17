@@ -2,12 +2,11 @@
 #include <iostream>
 #include <cstring>
 #include <time.h>
+#include "common.hpp"
 #include "game.hpp"
 #include "draw.hpp"
 #include "gui.hpp"
 
-typedef uint64_t u64;
-typedef uint32_t u32;
 
 
 Level make_test_level(const Window& window, Image img) {
@@ -89,9 +88,6 @@ void exit_callback() {
     game.quit = true;
 };
 
-enum MenuIndex {
-    MENU_MAIN, MENU_MAX, 
-};
 
 Menu make_main_menu(const Window& window) {
 
@@ -100,18 +96,22 @@ Menu make_main_menu(const Window& window) {
     float height = window.height / 3.f;
     menu.boundary = {window.width - width, 0.f, width, height};
 
-    Button start_button; 
-    start_button.text = "Start";
-    start_button.on_click = start_callback;
+    // WARNING: memory leak (never freed)
 
-    Button exit_button;
-    exit_button.text = "Exit";
-    exit_button.on_click = exit_callback;
+    Button* start_button = new Button(); 
+    start_button->text = "Start";
+    start_button->on_click = start_callback;
+    start_button->boundary = {0, 0, 100, 100};
+
+    Button* exit_button = new Button();
+    exit_button->text = "Exit";
+    exit_button->on_click = exit_callback;
 
     menu.items.push_back(start_button);
     menu.items.push_back(exit_button);
-    TextBox textbox;
-    textbox.text = "I am TextBox";
+
+    TextBox* textbox = new TextBox();
+    textbox->text = "I am TextBox";
     menu.items.push_back(textbox);
     menu.layout_vertical();
     return menu;
@@ -125,21 +125,21 @@ Gui make_gui(const Window& window) {
     return gui;
 }
 
-
 int main() {
     Log_Level global_log_lvl = FULL;
+    SetRandomSeed(time(NULL));
 
     const char* img_path = "perlin_noise.bmp";
     Image img = LoadImage(img_path);
     // Raylib window
     window.set_fps(100);
     window.open();
-    SetRandomSeed(time(NULL));
 
     Level test_lvl = make_test_level(window, img);
     game.levels.push_back(test_lvl);
     //game.start();
     //game.get_current_level().load_from_file("level.blob");
+    //
 
     Gui gui = make_gui(window);
 

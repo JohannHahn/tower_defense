@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.hpp"
 #include "game.hpp"
 #include "gui.hpp"
 #include "raylib.h"
@@ -40,7 +41,7 @@ struct Renderer {
         // not started game yet
         if (game.active_level == -1) {
             // TODO:: enum ins commons
-            draw_menu(gui.menues[0]); 
+            draw_menu(gui.menues[MENU_MAIN]); 
         }
         else if (game.edit_mode) {
             // draw edit menu
@@ -52,10 +53,17 @@ struct Renderer {
     }
 
     void draw_menu(const Menu& menu) {
-        for (const MenuItem& item : menu.items) {
+        for (const MenuItem* item : menu.items) {
+            const Button* b = dynamic_cast<const Button*>(item);
+            const TextBox* t = dynamic_cast<const TextBox*>(item);
 
-            assert(false);
-            //draw_button(item);
+            if (b) {
+                draw_button(*b);
+            }
+
+            if (t) {
+                draw_textbox(*t);
+            }
         }
     }
 

@@ -34,12 +34,14 @@ public:
 
         hovered = CheckCollisionPointRec(GetMousePosition(), boundary);
 
+        // clicked
         if (!down && hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             down = true;
             if (on_click)
                 on_click();
         }
 
+        // released
         if (down && IsMouseButtonUp(MOUSE_BUTTON_LEFT)) {
             down = false;
             if (on_release) on_release();
@@ -59,17 +61,16 @@ struct TextBox: public MenuItem {
 };
 
 struct Menu {
-    bool hovered = false;
-    std::vector<MenuItem> items;
+    std::vector<MenuItem*> items;
     Rectangle boundary;
 
     void layout_vertical(float padding = 1.f) {
         float offset = 0.f;
         Rectangle first_slot = { boundary.x, boundary.y, boundary.width, boundary.height / items.size() };
-        for (MenuItem& item: items) {
-            item.boundary = first_slot;
-            item.boundary.y += offset;
-            offset += item.boundary.height + padding;
+        for (MenuItem* item: items) {
+            item->boundary = first_slot;
+            item->boundary.y += offset;
+            offset += item->boundary.height + padding;
         } 
     }
 };
@@ -80,8 +81,8 @@ struct Gui {
 
     void update() {
         for (Menu& menu : menues) {
-            for (MenuItem& item: menu.items) {
-                item.update();
+            for (MenuItem* item: menu.items) {
+                item->update();
             }
         }
     }

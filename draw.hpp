@@ -6,6 +6,25 @@
 
 using namespace GUI;
 
+float center_text(Font font, const char* text, Rectangle boundary, Vector2* position = nullptr) {
+    float font_size = boundary.height ;
+    Vector2 size = MeasureTextEx(font, text, font_size, 2.f);
+    font_size *= (boundary.width / size.x);
+    if (position) {
+        *position = {boundary.x, boundary.y + (boundary.height - font_size) / 2.f};
+    }
+    return font_size;
+}
+
+Rectangle squish_rec(Rectangle rec, float dist) {
+    rec.x += dist;
+    rec.y += dist;
+    rec.width  -= 2.f*dist;
+    rec.height -= 2.f*dist;
+    return rec;
+}
+
+
 struct Renderer {
     Rectangle bounds;
     bool draw_debug = true;
@@ -16,20 +35,65 @@ struct Renderer {
     void draw_tower(const Tower& tower, const std::vector<EnemyRecord>& enemy_records);
     void draw_bullet(const Projectile& bullet);
     void draw_game(const Game& game);
-    void draw_gui(const Gui& gui);
 
-    Vector2 center_text(Font font, const char* text, Rectangle boundary) {
-        size_t len = strlen(text);
-        float width = boundary.width / (float)len;
-        float height = boundary.height / (width / 3.f);
+    void draw_gui(const Game& game, const Gui& gui) {
+        // not started game yet
+        if (game.active_level == -1) {
+            // TODO:: enum ins commons
+            draw_menu(gui.menues[0]); 
+        }
+        else if (game.edit_mode) {
+            // draw edit menu
+        }
+        if (game.paused){
+            // draw pause menu
+        }
 
-        log_var(len, "length");
-        log_var(width, "width");
-        log_var(height, "height");
-        log_var(boundary.width, "boundary width");
-        std::cout << "---------\n";
+    }
 
-        return {width, height};
+    void draw_menu(const Menu& menu) {
+        for (const MenuItem& item : menu.items) {
+
+            assert(false);
+            //draw_button(item);
+        }
+    }
+
+    void draw_button(const Button& button) {
+        Color col = button.bg_color;
+        float thicc = 1.f;
+        Rectangle inside_rec = button.boundary;
+        if (button.down) {
+            thicc = 3.f;
+            inside_rec = squish_rec(inside_rec, 3.f);
+        }
+        if (button.hovered) col = ColorBrightness(col, -0.5f);
+        DrawRectangleRec(inside_rec, col);
+        if (button.texture) {
+            //DrawTextureRec(*button.texture, button.boundary, {0.f, 0.f}, WHITE);
+        }
+        if (button.text) {
+            Rectangle rec = squish_rec(button.boundary, button.down ? 13.f : 10.f);
+            Vector2 position;
+            float font_size = center_text(GetFontDefault(), button.text, rec, &position);
+            
+            //DrawText(button.text, button.boundary.x, button.boundary.y, (font_size.y + font_size.x) / 2.f, BLACK);
+            Color text_color = button.text_color;
+            if (button.hovered) text_color = ColorBrightness(text_color, -0.5f);
+            DrawTextEx(GetFontDefault(), button.text, position, font_size, 2.f, button.text_color);
+
+        }
+        DrawRectangleLinesEx(button.boundary, thicc, BLACK);
+    }
+
+    void draw_textbox(const TextBox& textbox) {
+        Color bg = WHITE;
+        DrawRectangleRec(textbox.boundary, WHITE);
+        DrawRectangleLinesEx(textbox.boundary, 1.f, BLACK);
+        Font font = GetFontDefault();
+        Vector2 position;
+        float font_size = center_text(font, textbox.text.c_str(), squish_rec(textbox.boundary, 5.f), &position);
+        DrawTextEx(font, textbox.text.c_str(), position, font_size, 1.f, BLACK);
     }
 
 };
@@ -75,7 +139,7 @@ void Window::resize_if_needed() {
 }
 void Window::draw(const Game& game, const Gui& gui) {
     renderer.draw_game(game);
-    renderer.draw_gui(gui);
+    renderer.draw_gui(game, gui);
 }
 
 void Window::set_fps(u64 fps) {
@@ -199,30 +263,6 @@ void Renderer::draw_game(const Game& game) {
     // draw menu
     else {
 
-    }
-}
-
-void Renderer::draw_gui(const Gui& gui) {
-    for (int m_i = 0; m_i < gui.menues.size(); ++m_i) {
-        for (int b_i = 0; b_i < gui.menues[m_i].buttons.size(); ++b_i) {
-            const Button& button = gui.menues[m_i].buttons[b_i];
-            Color col = WHITE;
-            float thicc = button.down ? 3.f : 1.f;
-            if (button.hovered) col = {.r = 0xDC, .g = 0xDC, .b = 0xDC, .a = 0xFF};
-            DrawRectangleRec(button.boundary, col);
-            if (button.texture) {
-                //DrawTextureRec(*button.texture, button.boundary, {0.f, 0.f}, WHITE);
-            }
-            if (button.text) {
-                Vector2 font_size = center_text(GetFontDefault(), button.text, button.boundary);
-                Vector2 position = {button.boundary.x, button.boundary.y};
-                
-                //DrawText(button.text, button.boundary.x, button.boundary.y, (font_size.y + font_size.x) / 2.f, BLACK);
-                DrawTextEx(GetFontDefault(), button.text, position, font_size.y, 1.f, BLACK);
-
-            }
-            DrawRectangleLinesEx(button.boundary, thicc, BLACK);
-        }
     }
 }
 
